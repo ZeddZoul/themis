@@ -18,10 +18,11 @@ export const complianceQueue = new Queue('compliance-checks', { connection });
 /**
  * Adds a new compliance check job to the queue.
  * @param {object} jobData The data for the job.
+ * @param {string} jobId The unique ID for the job.
  * @returns {Promise<void>}
  */
-export const addComplianceJob = async (jobData: { repoId: string; commitHash: string }) => {
-  await complianceQueue.add('check-repo', jobData);
+export const addComplianceJob = async (jobData: object, jobId: string) => {
+  await complianceQueue.add('check-repo', jobData, { jobId });
 };
 
 // In a real worker service, you would create a worker like this:

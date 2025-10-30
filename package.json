@@ -22,16 +22,20 @@
   },
   "homepage": "https://github.com/ZeddZoul/codematic-app#readme",
   "dependencies": {
+    "@google/generative-ai": "^0.24.1",
     "bullmq": "^5.62.1",
     "express": "^5.1.0",
+    "firebase-admin": "^13.5.0",
     "fs-extra": "^11.3.2",
     "ioredis": "^5.8.2",
-    "simple-git": "^3.29.0"
+    "simple-git": "^3.29.0",
+    "uuid": "^13.0.0"
   },
   "devDependencies": {
     "@types/express": "^5.0.5",
     "@types/fs-extra": "^11.0.4",
     "@types/node": "^24.9.2",
+    "@types/uuid": "^10.0.0",
     "ts-node": "^10.9.2",
     "typescript": "^5.9.3"
   }
