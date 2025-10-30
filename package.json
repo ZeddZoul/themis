@@ -7,6 +7,7 @@
     "build": "tsc",
     "start:server": "ts-node src/index.ts",
     "start:worker": "ts-node src/worker.ts",
+    "seed:rules": "ts-node src/utils/seedRules.ts",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
@@ -22,18 +23,21 @@
   },
   "homepage": "https://github.com/ZeddZoul/codematic-app#readme",
   "dependencies": {
-    "@google/generative-ai": "^0.24.1",
+    "@google/genai": "^1.28.0",
     "bullmq": "^5.62.1",
     "express": "^5.1.0",
+    "express-rate-limit": "^8.2.0",
     "firebase-admin": "^13.5.0",
     "fs-extra": "^11.3.2",
     "ioredis": "^5.8.2",
+    "morgan": "^1.10.1",
     "simple-git": "^3.29.0",
     "uuid": "^13.0.0"
   },
   "devDependencies": {
     "@types/express": "^5.0.5",
     "@types/fs-extra": "^11.0.4",
+    "@types/morgan": "^1.9.10",
     "@types/node": "^24.9.2",
     "@types/uuid": "^10.0.0",
     "ts-node": "^10.9.2",

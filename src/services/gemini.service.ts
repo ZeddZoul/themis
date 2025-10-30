@@ -1,4 +1,4 @@
-import { GoogleGenerativeAI, GenerationConfig, HarmCategory, HarmBlockThreshold } from '@google/generative-ai';
+import { GoogleGenerativeAI, GenerationConfig, HarmCategory, HarmBlockThreshold, FunctionDeclarationSchemaType } from '@google/genai';
 import { promises as fs } from 'fs';
 import { fetchComplianceRules, ComplianceRule, ComplianceReport } from './firestore.service';
 
@@ -39,21 +39,21 @@ const safetySettings = [
 
 // Define the precise JSON schema we expect from the Gemini API
 const responseSchema = {
-  type: 'OBJECT',
+  type: FunctionDeclarationSchemaType.OBJECT,
   properties: {
-    app_status: { type: 'STRING', enum: ['HIGH_RISK', 'MEDIUM_RISK', 'LOW_RISK', 'UNKNOWN'] },
-    risk_score: { type: 'NUMBER' },
+    app_status: { type: FunctionDeclarationSchemaType.STRING, enum: ['HIGH_RISK', 'MEDIUM_RISK', 'LOW_RISK', 'UNKNOWN'] },
+    risk_score: { type: FunctionDeclarationSchemaType.NUMBER },
     issues: {
-      type: 'ARRAY',
+      type: FunctionDeclarationSchemaType.ARRAY,
       items: {
-        type: 'OBJECT',
+        type: FunctionDeclarationSchemaType.OBJECT,
         properties: {
-          guideline_id: { type: 'STRING' },
-          severity: { type: 'STRING', enum: ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW'] },
-          file_path: { type: 'STRING' },
-          line_number: { type: 'NUMBER' },
-          violation_summary: { type: 'STRING' },
-          actionable_fix: { type: 'STRING' },
+          guideline_id: { type: FunctionDeclarationSchemaType.STRING },
+          severity: { type: FunctionDeclarationSchemaType.STRING, enum: ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW'] },
+          file_path: { type: FunctionDeclarationSchemaType.STRING },
+          line_number: { type: FunctionDeclarationSchemaType.NUMBER },
+          violation_summary: { type: FunctionDeclarationSchemaType.STRING },
+          actionable_fix: { type: FunctionDeclarationSchemaType.STRING },
         },
         required: ['guideline_id', 'severity', 'file_path', 'violation_summary', 'actionable_fix'],
       },

@@ -1,7 +1,8 @@
-import { Request, Response, NextFunction } from 'express';
+import morgan from 'morgan';
 
-export const loggingMiddleware = (req: Request, res: Response, next: NextFunction) => {
-  // TODO: Implement logging logic
-  console.log(`${req.method} ${req.path}`);
-  next();
-};
+/**
+ * A structured HTTP request logger middleware using morgan.
+ * It uses the 'combined' format, which is a standard for Apache-style logs.
+ * This provides detailed, production-ready logs for auditing and debugging.
+ */
+export const loggingMiddleware = morgan('combined');
