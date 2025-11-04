@@ -3,7 +3,7 @@ import { Request, Response, NextFunction } from 'express';
 // Mock function to simulate fetching a user/api key from Firestore
 const getApiKey = async (key: string): Promise<{ key: string; userId: string } | null> => {
   // In a real application, this would query Firestore
-  const mockApiKeys = {
+  const mockApiKeys: Record<string, { userId: string }> = {
     'test-api-key': { userId: 'user-123' },
   };
   return mockApiKeys[key] ? { key, ...mockApiKeys[key] } : null;
