@@ -5,17 +5,19 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { colors } from '@/lib/design-system';
 import { Button } from '@/components/ui/button';
+import Image from 'next/image';
+import { DynamicIcon, IconName } from '@/lib/icons';
 
 interface NavItem {
   label: string;
   href: string;
-  icon: string;
+  icon: IconName;
 }
 
 const navItems: NavItem[] = [
-  { label: 'Overview', href: '/dashboard', icon: '📊' },
-  { label: 'Repositories', href: '/dashboard/repos', icon: '📦' },
-  { label: 'Issues', href: '/dashboard/issues', icon: '⚠️' },
+  { label: 'Overview', href: '/dashboard', icon: 'overview' },
+  { label: 'Repositories', href: '/dashboard/repos', icon: 'repositories' },
+  { label: 'Issues', href: '/dashboard/issues', icon: 'issues' },
 ];
 
 interface MobileSidebarProps {
@@ -118,69 +120,119 @@ export function MobileSidebar({ isOpen, onClose }: MobileSidebarProps) {
         aria-modal="true"
         aria-label="Mobile navigation"
       >
-        {/* Header with Close Button */}
-        <div className="p-4 border-b flex justify-between items-center" style={{ borderColor: colors.text.secondary + '20' }}>
-          <h1 
-            className="text-xl font-bold"
-            style={{ color: colors.text.primary }}
-          >
-            Themis Checker
-          </h1>
+        {/* Logo and Close Button */}
+        <div 
+          className="border-b flex items-center justify-between"
+          style={{ 
+            borderColor: colors.text.secondary + '20',
+            padding: '1.5rem 1rem',
+          }}
+        >
+          <Image 
+            alt='Themis Checker logo' 
+            src="/logo.png" 
+            width={120} 
+            height={69}
+            priority
+            sizes="120px"
+          />
           <button
             onClick={onClose}
-            className="p-2 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg hover:bg-gray-100 active:bg-gray-200 focus-visible:outline-none focus-visible:ring-2"
+            className="p-2 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2"
             style={{ '--tw-ring-color': colors.primary.accent } as React.CSSProperties}
             aria-label="Close menu"
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = colors.background.subtle;
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = 'transparent';
+            }}
           >
-            <svg
-              className="w-6 h-6"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-              style={{ color: colors.text.primary }}
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
+            <DynamicIcon
+              icon="close"
+              state="inactive"
+              size={24}
+              ariaLabel="Close menu"
+            />
           </button>
         </div>
 
         {/* Navigation Links */}
-        <nav className="flex-1 p-4" aria-label="Main navigation">
-          <ul className="space-y-2">
-            {navItems.map((item, index) => {
-              const active = isActive(item.href);
-              return (
-                <li key={item.href}>
-                  <Link
-                    ref={index === 0 ? firstFocusableRef : null}
-                    href={item.href}
-                    onClick={onClose}
-                    className="flex items-center gap-3 px-4 py-3 min-h-[44px] rounded-lg transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 active:scale-[0.98]"
-                    style={{
-                      backgroundColor: active ? colors.primary.accent + '10' : 'transparent',
-                      color: active ? colors.primary.accent : colors.text.primary,
-                      fontWeight: active ? 600 : 400,
-                      '--tw-ring-color': colors.primary.accent,
-                    } as React.CSSProperties}
-                    aria-current={active ? 'page' : undefined}
-                  >
-                    <span className="text-xl">{item.icon}</span>
-                    <span>{item.label}</span>
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
+        <nav 
+          className="flex-1" 
+          aria-label="Main navigation"
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '0.5rem',
+            padding: '1rem',
+          }}
+        >
+          {navItems.map((item, index) => {
+            const active = isActive(item.href);
+            return (
+              <Link
+                key={item.href}
+                ref={index === 0 ? firstFocusableRef : null}
+                href={item.href}
+                onClick={onClose}
+                className="flex items-center rounded-lg transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 active:scale-[0.98]"
+                style={{
+                  backgroundColor: active ? colors.primary.accent + '10' : 'transparent',
+                  color: active ? colors.primary.accent : colors.text.primary,
+                  fontWeight: active ? 600 : 400,
+                  '--tw-ring-color': colors.primary.accent,
+                  padding: '0.75rem',
+                  minHeight: '44px',
+                  gap: '0.75rem',
+                  textDecoration: 'none',
+                  margin: '0 0.5rem',
+                } as React.CSSProperties}
+                aria-current={active ? 'page' : undefined}
+                onMouseEnter={(e) => {
+                  if (!active) {
+                    e.currentTarget.style.backgroundColor = colors.background.subtle;
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (!active) {
+                    e.currentTarget.style.backgroundColor = 'transparent';
+                  }
+                }}
+              >
+                <DynamicIcon
+                  icon={item.icon}
+                  state={active ? 'active' : 'inactive'}
+                  size={20}
+                  ariaLabel={`${item.label} icon`}
+                  decorative
+                />
+                <span>{item.label}</span>
+              </Link>
+            );
+          })}
         </nav>
 
         {/* Logout Button */}
-        <div className="p-4 border-t" style={{ borderColor: colors.text.secondary + '20' }}>
+        <div 
+          className="border-t"
+          style={{ 
+            borderColor: colors.text.secondary + '20',
+            padding: '1rem',
+          }}
+        >
           <Button
             variant="primary"
             onClick={handleLogout}
-            className="w-full"
+            className="w-full flex items-center justify-center gap-2"
           >
-            Logout
+            <DynamicIcon
+              icon="logout"
+              state="white"
+              size={20}
+              decorative
+            />
+            <span>Logout</span>
           </Button>
         </div>
       </aside>

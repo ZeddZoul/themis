@@ -14,9 +14,9 @@ export function IssueSummary({
   lowSeverity,
 }: IssueSummaryProps) {
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-6 sm:mb-8">
       {/* Total Issues Card */}
-      <div className="bg-white p-4 sm:p-6 rounded-lg shadow-sm border border-gray-200">
+      <div className="bg-white p-4 sm:p-6 rounded-lg border" style={{ borderColor: colors.text.secondary + '30' }}>
         <div 
           className="text-2xl sm:text-3xl font-bold mb-1"
           style={{ color: colors.text.primary }}
@@ -32,7 +32,7 @@ export function IssueSummary({
       </div>
 
       {/* High Severity Card */}
-      <div className="bg-white p-4 sm:p-6 rounded-lg shadow-sm border border-gray-200">
+      <div className="bg-white p-4 sm:p-6 rounded-lg border" style={{ borderColor: colors.text.secondary + '30' }}>
         <div 
           className="text-2xl sm:text-3xl font-bold mb-1"
           style={{ color: colors.status.error }}
@@ -48,7 +48,7 @@ export function IssueSummary({
       </div>
 
       {/* Medium Severity Card */}
-      <div className="bg-white p-4 sm:p-6 rounded-lg shadow-sm border border-gray-200">
+      <div className="bg-white p-4 sm:p-6 rounded-lg border" style={{ borderColor: colors.text.secondary + '30' }}>
         <div 
           className="text-2xl sm:text-3xl font-bold mb-1"
           style={{ color: colors.status.warning }}
@@ -64,7 +64,7 @@ export function IssueSummary({
       </div>
 
       {/* Low Severity Card */}
-      <div className="bg-white p-4 sm:p-6 rounded-lg shadow-sm border border-gray-200">
+      <div className="bg-white p-4 sm:p-6 rounded-lg border" style={{ borderColor: colors.text.secondary + '30' }}>
         <div 
           className="text-2xl sm:text-3xl font-bold mb-1"
           style={{ color: colors.status.info }}

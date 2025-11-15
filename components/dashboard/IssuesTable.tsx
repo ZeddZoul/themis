@@ -5,6 +5,8 @@ import { colors } from '@/lib/design-system';
 import { Badge } from '@/components/ui/badge';
 import { DynamicIcon } from '@/lib/icons';
 import { MdDescription } from 'react-icons/md';
+import { getCheckRunErrorMessage } from '@/lib/error-messages';
+import { InlineError } from '@/components/ui/error-display';
 
 type Platform = 'APPLE_APP_STORE' | 'GOOGLE_PLAY_STORE';
 type Severity = 'high' | 'medium' | 'low' | 'none';
@@ -16,6 +18,10 @@ export interface CheckRun {
   checkDate: Date;
   highestSeverity: Severity;
   totalIssues: number;
+  status?: string;
+  errorType?: string | null;
+  errorMessage?: string | null;
+  errorDetails?: string | null;
 }
 
 interface IssuesTableProps {
@@ -204,6 +210,10 @@ export function IssuesTable({ checkRuns, onRowClick }: IssuesTableProps) {
           <tbody>
             {checkRuns.map((checkRun) => {
               const severityInfo = severityConfig[checkRun.highestSeverity];
+              const isFailed = checkRun.status === 'FAILED';
+              const errorMessage = isFailed 
+                ? getCheckRunErrorMessage(checkRun.errorType, checkRun.errorMessage, checkRun.errorDetails)
+                : null;
               
               return (
                 <tr
@@ -257,17 +267,30 @@ export function IssuesTable({ checkRuns, onRowClick }: IssuesTableProps) {
                     </span>
                   </td>
                   <td className="px-4 py-3">
-                    <Badge variant={severityInfo.variant} size="sm" showIcon>
-                      {severityInfo.label}
-                    </Badge>
+                    {isFailed && errorMessage ? (
+                      <InlineError error={errorMessage} compact />
+                    ) : (
+                      <Badge variant={severityInfo.variant} size="sm" showIcon>
+                        {severityInfo.label}
+                      </Badge>
+                    )}
                   </td>
                   <td className="px-4 py-3">
-                    <span 
-                      className="font-medium"
-                      style={{ color: colors.text.primary }}
-                    >
-                      {checkRun.totalIssues}
-                    </span>
+                    {isFailed ? (
+                      <span 
+                        className="text-sm"
+                        style={{ color: colors.text.secondary }}
+                      >
+                        N/A
+                      </span>
+                    ) : (
+                      <span 
+                        className="font-medium"
+                        style={{ color: colors.text.primary }}
+                      >
+                        {checkRun.totalIssues}
+                      </span>
+                    )}
                   </td>
                 </tr>
               );
@@ -280,6 +303,10 @@ export function IssuesTable({ checkRuns, onRowClick }: IssuesTableProps) {
       <div className="md:hidden space-y-3">
         {checkRuns.map((checkRun) => {
           const severityInfo = severityConfig[checkRun.highestSeverity];
+          const isFailed = checkRun.status === 'FAILED';
+          const errorMessage = isFailed 
+            ? getCheckRunErrorMessage(checkRun.errorType, checkRun.errorMessage, checkRun.errorDetails)
+            : null;
           
           return (
             <button
@@ -314,9 +341,13 @@ export function IssuesTable({ checkRuns, onRowClick }: IssuesTableProps) {
                     {checkRun.id.substring(0, 12)}...
                   </p>
                 </div>
-                <Badge variant={severityInfo.variant} size="sm" showIcon>
-                  {severityInfo.label}
-                </Badge>
+                {isFailed && errorMessage ? (
+                  <InlineError error={errorMessage} compact />
+                ) : (
+                  <Badge variant={severityInfo.variant} size="sm" showIcon>
+                    {severityInfo.label}
+                  </Badge>
+                )}
               </div>
               
               <div className="space-y-1 text-sm">
@@ -328,12 +359,16 @@ export function IssuesTable({ checkRuns, onRowClick }: IssuesTableProps) {
                 </div>
                 <div className="flex justify-between">
                   <span style={{ color: colors.text.secondary }}>Issues:</span>
-                  <span 
-                    className="font-medium"
-                    style={{ color: colors.text.primary }}
-                  >
-                    {checkRun.totalIssues}
-                  </span>
+                  {isFailed ? (
+                    <span style={{ color: colors.text.secondary }}>N/A</span>
+                  ) : (
+                    <span 
+                      className="font-medium"
+                      style={{ color: colors.text.primary }}
+                    >
+                      {checkRun.totalIssues}
+                    </span>
+                  )}
                 </div>
                 <div className="flex justify-between">
                   <span style={{ color: colors.text.secondary }}>Date:</span>

@@ -77,17 +77,29 @@ export function SearchBar({
         {localValue && (
           <button
             onClick={handleClear}
-            className="absolute right-2 top-1/2 transform -translate-y-1/2 p-2 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-full hover:bg-gray-100 active:bg-gray-200 transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 animate-fadeIn"
+            className="absolute right-2 top-1/2 transform -translate-y-1/2 p-2 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-full transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 animate-fadeIn group"
             style={{ '--tw-ring-color': colors.primary.accent } as React.CSSProperties}
             aria-label="Clear search"
             type="button"
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = colors.primary.accent + '10';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = 'transparent';
+            }}
           >
             <svg
-              className="w-5 h-5"
+              className="w-5 h-5 transition-colors duration-200"
               style={{ color: colors.text.secondary }}
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
+              onMouseEnter={(e) => {
+                e.currentTarget.style.color = colors.primary.accent;
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.color = colors.text.secondary;
+              }}
             >
               <path
                 strokeLinecap="round"

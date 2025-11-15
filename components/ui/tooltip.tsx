@@ -122,7 +122,7 @@ export const Tooltip: React.FC<TooltipProps> = ({
       {isVisible && (
         <div
           role="tooltip"
-          className="fixed z-50 px-3 py-2 text-sm font-medium text-white rounded-lg shadow-lg pointer-events-none whitespace-nowrap"
+          className="fixed px-3 py-2 text-sm font-medium text-white rounded-lg shadow-lg pointer-events-none whitespace-nowrap"
           style={{
             backgroundColor: colors.text.primary,
             top: position === 'top' ? coords.top : position === 'bottom' ? coords.top : coords.top,
@@ -132,6 +132,7 @@ export const Tooltip: React.FC<TooltipProps> = ({
               position === 'left' ? 'translate(-100%, -50%)' :
               position === 'top' ? 'translate(-50%, -100%)' :
               'translate(-50%, 0)',
+            zIndex: 999999,
           }}
         >
           {content}

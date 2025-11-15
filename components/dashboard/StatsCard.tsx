@@ -12,11 +12,9 @@
 
 import React from 'react';
 import { IconType } from 'react-icons';
-import { FaArrowUp, FaArrowDown } from 'react-icons/fa';
 import { colors } from '@/lib/design-system';
 import { DynamicIcon } from '@/lib/icons';
 import { SkeletonLoader } from '@/components/ui/loading-spinner';
-import { useRenderTracking } from '@/lib/hooks/usePerformance';
 
 export interface StatsCardProps {
   /** Title/label for the statistic */
@@ -54,9 +52,6 @@ export const StatsCard = React.memo<StatsCardProps>(({
   className = '',
 }) => {
   const [isHovered, setIsHovered] = React.useState(false);
-  
-  // Track renders in development
-  useRenderTracking('StatsCard');
 
   // Show skeleton loader during loading state
   if (loading) {
@@ -92,29 +87,14 @@ export const StatsCard = React.memo<StatsCardProps>(({
         />
       </div>
 
-      {/* Value and Trend */}
-      <div className="flex items-baseline gap-2 mb-1 sm:mb-2">
+      {/* Value */}
+      <div className="mb-1 sm:mb-2">
         <div
           className="text-2xl sm:text-3xl font-bold"
           style={{ color: colors.text.primary }}
         >
           {value}
         </div>
-        {trend && (
-          <div
-            className="flex items-center gap-1 text-xs sm:text-sm font-medium"
-            style={{
-              color: trend.direction === 'up' ? colors.status.success : colors.status.error,
-            }}
-          >
-            {trend.direction === 'up' ? (
-              <FaArrowUp size={12} aria-hidden="true" />
-            ) : (
-              <FaArrowDown size={12} aria-hidden="true" />
-            )}
-            <span>{Math.abs(trend.value)}%</span>
-          </div>
-        )}
       </div>
 
       {/* Label */}

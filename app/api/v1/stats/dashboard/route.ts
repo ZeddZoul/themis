@@ -38,49 +38,57 @@ export async function GET() {
     const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
     const sixtyDaysAgo = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000);
 
-    // Fetch all recent reports (last 30 days)
-    const recentReports = await prisma.complianceReport.findMany({
+    // Fetch all recent check runs (last 30 days)
+    const recentReports = await prisma.checkRun.findMany({
       where: {
         createdAt: {
           gte: thirtyDaysAgo,
         },
+        status: 'COMPLETED', // Only count completed checks
       },
       orderBy: {
         createdAt: 'desc',
       },
     });
 
-    // Fetch reports from 30-60 days ago for trend comparison
-    const previousReports = await prisma.complianceReport.findMany({
+    // Fetch check runs from 30-60 days ago for trend comparison
+    const previousReports = await prisma.checkRun.findMany({
       where: {
         createdAt: {
           gte: sixtyDaysAgo,
           lt: thirtyDaysAgo,
         },
+        status: 'COMPLETED',
       },
     });
 
-    // Calculate pending issues from recent reports
-    let pendingIssues = 0;
-    const repositoryIssues = new Map<string, number>();
-
+    // Get the latest check run per repository
+    const repositoryLatestChecks = new Map<string, any>();
+    
     recentReports.forEach((report: any) => {
-      const issues = report.issues as any;
-      if (Array.isArray(issues)) {
-        // Get the latest report per repository
-        const repoKey = report.installationId;
-        if (!repositoryIssues.has(repoKey)) {
-          repositoryIssues.set(repoKey, issues.length);
-        }
+      const repoKey = report.repositoryId;
+      const existing = repositoryLatestChecks.get(repoKey);
+      
+      // Keep the most recent check for each repository
+      if (!existing || new Date(report.createdAt) > new Date(existing.createdAt)) {
+        repositoryLatestChecks.set(repoKey, report);
       }
     });
 
-    // Sum up issues from latest reports per repository
-    repositoryIssues.forEach((count) => {
-      pendingIssues += count;
+    // Calculate pending issues from latest check per repository
+    let pendingIssues = 0;
+    const repositoryIssues = new Map<string, number>();
+
+    repositoryLatestChecks.forEach((report: any, repoKey: string) => {
+      const issues = report.issues as any;
+      if (Array.isArray(issues)) {
+        const issueCount = issues.length;
+        repositoryIssues.set(repoKey, issueCount);
+        pendingIssues += issueCount;
+      }
     });
 
-    // Calculate recent checks (last 30 days)
+    // Calculate recent checks (last 30 days) - count total checks, not unique repos
     const recentChecks = recentReports.length;
 
     // Calculate compliance rate
@@ -120,22 +128,30 @@ export async function GET() {
           )
         : 0;
 
+    // Get the latest check run per repository for previous period
+    const previousRepositoryLatestChecks = new Map<string, any>();
+    
+    previousReports.forEach((report: any) => {
+      const repoKey = report.repositoryId;
+      const existing = previousRepositoryLatestChecks.get(repoKey);
+      
+      // Keep the most recent check for each repository
+      if (!existing || new Date(report.createdAt) > new Date(existing.createdAt)) {
+        previousRepositoryLatestChecks.set(repoKey, report);
+      }
+    });
+
     // Issue trend: compare total issues
     let previousPendingIssues = 0;
     const previousRepositoryIssues = new Map<string, number>();
 
-    previousReports.forEach((report: any) => {
+    previousRepositoryLatestChecks.forEach((report: any, repoKey: string) => {
       const issues = report.issues as any;
       if (Array.isArray(issues)) {
-        const repoKey = report.installationId;
-        if (!previousRepositoryIssues.has(repoKey)) {
-          previousRepositoryIssues.set(repoKey, issues.length);
-        }
+        const issueCount = issues.length;
+        previousRepositoryIssues.set(repoKey, issueCount);
+        previousPendingIssues += issueCount;
       }
-    });
-
-    previousRepositoryIssues.forEach((count) => {
-      previousPendingIssues += count;
     });
 
     const issueTrendValue =
@@ -160,12 +176,12 @@ export async function GET() {
       },
     };
 
-    // Cache the response for 2 minutes with stale-while-revalidate
-    // s-maxage: cache for 2 minutes on CDN/edge
-    // stale-while-revalidate: serve stale content for 4 minutes while revalidating
+    // Cache the response for 30 seconds with stale-while-revalidate
+    // s-maxage: cache for 30 seconds on CDN/edge
+    // stale-while-revalidate: serve stale content for 1 minute while revalidating
     return NextResponse.json(stats, {
       headers: {
-        'Cache-Control': 'public, s-maxage=120, stale-while-revalidate=240, max-age=60',
+        'Cache-Control': 'public, s-maxage=30, stale-while-revalidate=60, max-age=15',
       },
     });
   } catch (error: any) {

@@ -7,6 +7,7 @@ import { IssueFiltersState } from '@/components/dashboard/IssueFilters';
 import { IssuesTable, CheckRun } from '@/components/dashboard/IssuesTable';
 import { Pagination } from '@/components/ui/pagination';
 import { SkeletonLoader } from '@/components/ui/loading-spinner';
+import { SkeletonTable } from '@/components/ui/SkeletonTable';
 import { colors } from '@/lib/design-system';
 import { useToast } from '@/lib/hooks/useToast';
 import { useCheckHistory } from '@/lib/hooks/useCheckHistory';
@@ -152,12 +153,8 @@ export default function IssuesHistoryPage() {
 
         {/* Loading State */}
         {isLoading && (
-          <div className="space-y-4" role="status" aria-live="polite" aria-label="Loading check history">
-            {Array.from({ length: 5 }).map((_, i) => (
-              <div key={i} className="p-4 border rounded-lg" style={{ borderColor: colors.text.secondary + '40' }}>
-                <SkeletonLoader variant="text" />
-              </div>
-            ))}
+          <div role="status" aria-live="polite" aria-label="Loading check history">
+            <SkeletonTable rows={5} columns={6} />
             <span className="sr-only">Loading check history...</span>
           </div>
         )}

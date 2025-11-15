@@ -9,8 +9,10 @@ import { useToast } from '@/lib/hooks/useToast';
 import { useUser } from '@/lib/hooks/useUser';
 import { useDashboardStats } from '@/lib/hooks/useDashboardStats';
 import { DynamicIcon } from '@/lib/icons';
-import { MdWarning, MdDashboard } from 'react-icons/md';
-import { FaCodeBranch, FaCheckCircle } from 'react-icons/fa';
+import { MdDashboard } from 'react-icons/md';
+import { FaCodeBranch } from 'react-icons/fa';
+import { AiOutlineIssuesClose } from 'react-icons/ai';
+import { GiCheckedShield } from 'react-icons/gi';
 import { StatsCard } from '@/components/dashboard/StatsCard';
 
 interface DashboardClientProps {
@@ -148,7 +150,7 @@ export function DashboardClient({ initialStats, initialUser }: DashboardClientPr
       </div>
 
       {/* Statistics Cards Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 mb-8">
+      <div className="grid grid-cols-2 sm:grid-cols-2 gap-4 sm:gap-6 mb-8">
         <StatsCard
           title="Total Repositories"
           value={displayStats?.totalRepositories ?? 0}
@@ -160,7 +162,7 @@ export function DashboardClient({ initialStats, initialUser }: DashboardClientPr
         <StatsCard
           title="Pending Issues"
           value={displayStats?.pendingIssues ?? 0}
-          icon={MdWarning}
+          icon={AiOutlineIssuesClose}
           trend={displayStats?.trends.issues}
           onClick={handleNavigateToIssues}
           loading={statsLoading && !initialStats}
@@ -173,8 +175,12 @@ export function DashboardClient({ initialStats, initialUser }: DashboardClientPr
         />
         <StatsCard
           title="Compliance Rate"
-          value={displayStats?.complianceRate ? `${displayStats.complianceRate}%` : '0%'}
-          icon={FaCheckCircle}
+          value={
+            displayStats?.recentChecks && displayStats.recentChecks > 0
+              ? `${displayStats.complianceRate}%`
+              : 'N/A'
+          }
+          icon={GiCheckedShield}
           loading={statsLoading && !initialStats}
         />
       </div>
@@ -220,7 +226,7 @@ export function DashboardClient({ initialStats, initialUser }: DashboardClientPr
               e.currentTarget.style.backgroundColor = 'transparent';
             }}
           >
-            <DynamicIcon icon={MdWarning} state="active" size={20} decorative />
+            <DynamicIcon icon={AiOutlineIssuesClose} state="active" size={20} decorative />
             <span className="font-medium">View All Issues</span>
           </button>
         </div>

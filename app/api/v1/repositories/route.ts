@@ -41,10 +41,29 @@ export async function GET(request: Request) {
     console.log('Pagination:', { page, pageSize, search });
     
     const octokit = getGithubClient();
-    const { data } = await octokit.request('GET /installation/repositories');
-    console.log('Found repositories:', data.repositories?.length || 0);
     
-    let repositories = data.repositories || [];
+    // Fetch all repositories (GitHub API paginates at 30 per page)
+    let repositories: any[] = [];
+    let currentPage = 1;
+    let hasMore = true;
+    
+    while (hasMore) {
+      const { data } = await octokit.request('GET /installation/repositories', {
+        per_page: 100,
+        page: currentPage,
+      });
+      
+      repositories = repositories.concat(data.repositories || []);
+      
+      // Check if there are more pages
+      hasMore = data.repositories && data.repositories.length === 100;
+      currentPage++;
+      
+      // Safety limit to prevent infinite loops
+      if (currentPage > 10) break;
+    }
+    
+    console.log('Found repositories:', repositories.length);
     
     if (repositories.length > 0) {
       console.log('Repository names:', repositories.map((r: any) => r.full_name));
@@ -71,54 +90,59 @@ export async function GET(request: Request) {
     // Fetch last check status for each repository
     const repositoriesWithStatus: RepositoryWithStatus[] = await Promise.all(
       paginatedRepos.map(async (repo: any) => {
-        // Find the installation for this repository
-        const installation = await prisma.installation.findFirst({
+        // Find the latest check run for this repository
+        const lastCheckRun = await prisma.checkRun.findFirst({
           where: {
             owner: repo.owner.login,
             repo: repo.name,
           },
-          include: {
-            reports: {
-              orderBy: {
-                createdAt: 'desc',
-              },
-              take: 1,
-            },
+          orderBy: {
+            createdAt: 'desc',
           },
         });
 
         let lastCheckStatus: RepositoryStatus = 'none';
         let lastCheckDate: Date | undefined;
         let issueCount: number | undefined;
+        let errorType: string | null | undefined;
+        let errorMessage: string | null | undefined;
+        let errorDetails: string | null | undefined;
 
-        if (installation && installation.reports.length > 0) {
-          const lastReport = installation.reports[0];
-          lastCheckDate = lastReport.createdAt;
+        if (lastCheckRun) {
+          lastCheckDate = lastCheckRun.createdAt;
 
-          // Calculate status based on issues
-          const issues = lastReport.issues as any;
-          if (issues && Array.isArray(issues)) {
-            issueCount = issues.length;
+          // Check if the run failed
+          if (lastCheckRun.status === 'FAILED') {
+            lastCheckStatus = 'error';
+            errorType = lastCheckRun.errorType;
+            errorMessage = lastCheckRun.errorMessage;
+            errorDetails = lastCheckRun.errorDetails;
+          } else if (lastCheckRun.status === 'COMPLETED') {
+            // Calculate status based on issues
+            const issues = lastCheckRun.issues as any;
+            if (issues && Array.isArray(issues)) {
+              issueCount = issues.length;
 
-            // Determine highest severity
-            const hasCritical = issues.some((issue: any) => 
-              issue.severity === 'high' || issue.severity === 'critical'
-            );
-            const hasWarning = issues.some((issue: any) => 
-              issue.severity === 'medium' || issue.severity === 'warning'
-            );
+              // Determine highest severity
+              const hasCritical = issues.some((issue: any) => 
+                issue.severity === 'high' || issue.severity === 'critical'
+              );
+              const hasWarning = issues.some((issue: any) => 
+                issue.severity === 'medium' || issue.severity === 'warning'
+              );
 
-            if (hasCritical) {
-              lastCheckStatus = 'error';
-            } else if (hasWarning) {
-              lastCheckStatus = 'warning';
-            } else if (issues.length === 0) {
-              lastCheckStatus = 'success';
+              if (hasCritical) {
+                lastCheckStatus = 'error';
+              } else if (hasWarning) {
+                lastCheckStatus = 'warning';
+              } else if (issues.length === 0) {
+                lastCheckStatus = 'success';
+              } else {
+                lastCheckStatus = 'success'; // Low severity issues still count as success
+              }
             } else {
-              lastCheckStatus = 'success'; // Low severity issues still count as success
+              lastCheckStatus = 'success'; // No issues found
             }
-          } else {
-            lastCheckStatus = 'success'; // No issues found
           }
         }
 
@@ -127,6 +151,9 @@ export async function GET(request: Request) {
           lastCheckStatus,
           lastCheckDate,
           issueCount,
+          errorType,
+          errorMessage,
+          errorDetails,
         };
       })
     );

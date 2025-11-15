@@ -21,7 +21,13 @@ import {
   FaExclamationTriangle,
   FaChevronLeft,
   FaChevronRight,
+  FaSignOutAlt,
 } from 'react-icons/fa';
+import { RiGitRepositoryFill } from 'react-icons/ri';
+import { VscIssues } from 'react-icons/vsc';
+import { AiOutlineIssuesClose } from 'react-icons/ai';
+import { TbLayoutSidebarLeftCollapse, TbLayoutSidebarLeftCollapseFilled, TbLayoutSidebarRightCollapse, TbLayoutSidebarRightCollapseFilled } from 'react-icons/tb';
+import { GiCheckedShield } from 'react-icons/gi';
 import { colors } from './design-system';
 
 /**
@@ -31,7 +37,7 @@ export const iconMap = {
   // Navigation icons
   overview: MdDashboard,
   repositories: FaCodeBranch,
-  issues: MdWarning,
+  issues: VscIssues,
   
   // Status icons
   success: FaCheck,
@@ -42,10 +48,17 @@ export const iconMap = {
   // Additional status icons
   checkCircle: MdCheckCircle,
   timesCircle: FaTimesCircle,
+  pendingIssues: AiOutlineIssuesClose,
+  complianceRate: GiCheckedShield,
   
   // UI control icons
   chevronLeft: FaChevronLeft,
   chevronRight: FaChevronRight,
+  logout: FaSignOutAlt,
+  collapseLeft: TbLayoutSidebarLeftCollapse,
+  collapseLeftFilled: TbLayoutSidebarLeftCollapseFilled,
+  collapseRight: TbLayoutSidebarRightCollapse,
+  collapseRightFilled: TbLayoutSidebarRightCollapseFilled,
 } as const;
 
 export type IconName = keyof typeof iconMap;
@@ -53,7 +66,7 @@ export type IconName = keyof typeof iconMap;
 /**
  * Icon state types for dynamic coloring
  */
-export type IconState = 'active' | 'inactive' | 'hover' | 'success' | 'error' | 'warning' | 'info';
+export type IconState = 'active' | 'inactive' | 'hover' | 'success' | 'error' | 'warning' | 'info' | 'white';
 
 /**
  * Props for the DynamicIcon component
@@ -92,6 +105,8 @@ function getIconColor(state: IconState): string {
       return colors.status.warning;
     case 'info':
       return colors.status.info;
+    case 'white':
+      return '#FFFFFF';
     default:
       return colors.text.primary;
   }

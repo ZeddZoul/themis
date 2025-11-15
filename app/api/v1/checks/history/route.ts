@@ -12,6 +12,10 @@ interface CheckRun {
   checkDate: Date;
   highestSeverity: Severity;
   totalIssues: number;
+  status?: string;
+  errorType?: string | null;
+  errorMessage?: string | null;
+  errorDetails?: string | null;
 }
 
 export async function GET(request: Request) {
@@ -51,52 +55,28 @@ export async function GET(request: Request) {
       };
     }
 
-    // Fetch all reports with filters
-    const reports = await prisma.complianceReport.findMany({
-      where: whereClause,
-      include: {
-        installation: true,
-      },
+    // Fetch all check runs with filters (using CheckRun table which has error fields)
+    const checkRunRecords = await prisma.checkRun.findMany({
       orderBy: {
         createdAt: 'desc',
       },
     });
 
-    console.log(`Found ${reports.length} total reports`);
+    console.log(`Found ${checkRunRecords.length} total check runs`);
 
-    // Process and filter reports
-    const checkRuns: CheckRun[] = reports
-      .map((report: any) => {
-        const issues = report.issues as any;
-        const summary = report.summary as any;
+    // Process check runs
+    const checkRuns: CheckRun[] = checkRunRecords
+      .map((checkRun: any) => {
+        const issues = checkRun.issues as any;
         
-        // Extract platforms from summary or issues
+        // Extract platforms from checkType
         let platforms: Platform[] = [];
-        if (summary && summary.checkType) {
-          if (summary.checkType === 'BOTH') {
-            platforms = ['APPLE_APP_STORE', 'GOOGLE_PLAY_STORE'];
-          } else {
-            platforms = [summary.checkType as Platform];
-          }
-        } else if (Array.isArray(issues) && issues.length > 0) {
-          // Try to infer from issues
-          const hasApple = issues.some((i: any) => 
-            i.platform === 'APPLE_APP_STORE' || 
-            i.category?.toLowerCase().includes('apple') ||
-            i.category?.toLowerCase().includes('ios')
-          );
-          const hasGoogle = issues.some((i: any) => 
-            i.platform === 'GOOGLE_PLAY_STORE' || 
-            i.category?.toLowerCase().includes('google') ||
-            i.category?.toLowerCase().includes('android')
-          );
-          
-          if (hasApple) platforms.push('APPLE_APP_STORE');
-          if (hasGoogle) platforms.push('GOOGLE_PLAY_STORE');
-        }
-
-        // If no platforms detected, default to both
-        if (platforms.length === 0) {
+        if (checkRun.checkType === 'BOTH') {
+          platforms = ['APPLE_APP_STORE', 'GOOGLE_PLAY_STORE'];
+        } else if (checkRun.checkType === 'APPLE_APP_STORE' || checkRun.checkType === 'GOOGLE_PLAY_STORE') {
+          platforms = [checkRun.checkType as Platform];
+        } else {
+          // Default to both if unknown
           platforms = ['APPLE_APP_STORE', 'GOOGLE_PLAY_STORE'];
         }
 
@@ -104,7 +84,11 @@ export async function GET(request: Request) {
         let totalIssues = 0;
         let highestSeverity: Severity = 'none';
 
-        if (Array.isArray(issues)) {
+        if (checkRun.status === 'FAILED') {
+          // For failed checks, set severity based on error
+          highestSeverity = 'none';
+          totalIssues = 0;
+        } else if (Array.isArray(issues)) {
           totalIssues = issues.length;
 
           const hasCritical = issues.some((issue: any) => 
@@ -124,28 +108,29 @@ export async function GET(request: Request) {
           } else if (hasLow) {
             highestSeverity = 'low';
           }
-        } else if (summary && typeof summary.totalIssues === 'number') {
-          totalIssues = summary.totalIssues;
-          
-          if (summary.highSeverity > 0) {
-            highestSeverity = 'high';
-          } else if (summary.mediumSeverity > 0) {
-            highestSeverity = 'medium';
-          } else if (summary.lowSeverity > 0) {
-            highestSeverity = 'low';
-          }
         }
 
         return {
-          id: report.id,
-          repositoryName: `${report.installation.owner}/${report.installation.repo}`,
+          id: checkRun.id,
+          repositoryName: `${checkRun.owner}/${checkRun.repo}`,
           platforms,
-          checkDate: report.createdAt,
+          checkDate: checkRun.createdAt,
           highestSeverity,
           totalIssues,
+          status: checkRun.status,
+          errorType: checkRun.errorType,
+          errorMessage: checkRun.errorMessage,
+          errorDetails: checkRun.errorDetails,
         };
       })
       .filter((checkRun: CheckRun) => {
+        // Apply repository filter
+        if (repositoryFilter !== 'all') {
+          if (!checkRun.repositoryName.toLowerCase().includes(repositoryFilter.toLowerCase())) {
+            return false;
+          }
+        }
+
         // Apply platform filter
         if (platformFilter !== 'all') {
           if (!checkRun.platforms.includes(platformFilter as Platform)) {
@@ -164,6 +149,8 @@ export async function GET(request: Request) {
       });
 
     console.log(`After filtering: ${checkRuns.length} check runs`);
+
+
 
     // Get total count before pagination
     const total = checkRuns.length;

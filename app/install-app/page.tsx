@@ -29,21 +29,29 @@ export default function InstallAppPage() {
           border: `1px solid ${colors.status.info}40` 
         }}>
           <h2 className="font-semibold mb-3" style={{ color: colors.text.primary }}>
-            What the app needs:
+            Required Permissions:
           </h2>
           <ul className="space-y-2" style={{ color: colors.text.primary }}>
             <li className="flex items-start">
               <span className="mr-2">✓</span>
-              <span>Read access to repository contents</span>
+              <span><strong>Contents: Read</strong> - Access repository files for compliance analysis</span>
             </li>
             <li className="flex items-start">
               <span className="mr-2">✓</span>
-              <span>Read access to repository metadata</span>
+              <span><strong>Metadata: Read</strong> - Access basic repository information</span>
             </li>
           </ul>
-          <p className="text-sm mt-4" style={{ color: colors.text.secondary }}>
-            The app only requests read-only access. Your code is never modified, stored, or used for training.
-          </p>
+          <div className="mt-4 pt-4" style={{ borderTop: `1px solid ${colors.status.info}40` }}>
+            <p className="text-sm font-semibold mb-2" style={{ color: colors.text.primary }}>
+              Privacy & Security:
+            </p>
+            <ul className="text-sm space-y-1" style={{ color: colors.text.secondary }}>
+              <li>• Read-only access - your code is never modified</li>
+              <li>• Works with both public and private repositories</li>
+              <li>• Code is analyzed but never stored or used for training</li>
+              <li>• No write permissions requested</li>
+            </ul>
+          </div>
         </div>
 
         <div className="space-y-4">
@@ -56,12 +64,12 @@ export default function InstallAppPage() {
           </Button>
           
           <div className="text-center text-sm" style={{ color: colors.text.secondary }}>
-            <p className="mb-2">Or manually install:</p>
+            <p className="mb-2">Manual installation steps:</p>
             <ol className="text-left space-y-1">
-              <li>1. Go to your GitHub App settings</li>
-              <li>2. Find your Themis Checker app</li>
-              <li>3. Click &quot;Install App&quot;</li>
-              <li>4. Select repositories to check</li>
+              <li>1. Click the button above to go to GitHub</li>
+              <li>2. Select which repositories to grant access</li>
+              <li>3. Choose &quot;All repositories&quot; (recommended) or select specific ones</li>
+              <li>4. Click &quot;Install&quot; and you&apos;ll be redirected back</li>
             </ol>
           </div>
           
@@ -80,13 +88,30 @@ export default function InstallAppPage() {
 
         <div className="mt-8 pt-6" style={{ borderTop: `1px solid ${colors.text.secondary}33` }}>
           <h3 className="font-semibold mb-2" style={{ color: colors.text.primary }}>
-            After installation:
+            Repository Access:
           </h3>
-          <ol className="text-sm space-y-2" style={{ color: colors.text.secondary }}>
-            <li>1. Choose which repositories to give access to</li>
-            <li>2. Click &quot;Install&quot; on GitHub</li>
-            <li>3. You&apos;ll be redirected back to your dashboard</li>
-          </ol>
+          <p className="text-sm mb-3" style={{ color: colors.text.secondary }}>
+            We recommend selecting <strong style={{ color: colors.text.primary }}>&quot;All repositories&quot;</strong> when installing:
+          </p>
+          <ul className="text-sm space-y-1" style={{ color: colors.text.secondary }}>
+            <li>• Automatically includes new repositories</li>
+            <li>• No need to manually add repositories later</li>
+            <li>• Seamless compliance checking workflow</li>
+            <li>• Still maintains read-only access</li>
+          </ul>
+          <p className="text-sm mt-3" style={{ color: colors.text.secondary }}>
+            For detailed setup instructions, see the{' '}
+            <a 
+              href="/docs/github-app-setup.md" 
+              target="_blank"
+              className="underline transition-colors"
+              style={{ color: colors.status.info }}
+              onMouseEnter={(e) => e.currentTarget.style.color = colors.text.primary}
+              onMouseLeave={(e) => e.currentTarget.style.color = colors.status.info}
+            >
+              GitHub App Setup Guide
+            </a>
+          </p>
         </div>
       </div>
     </div>

@@ -1,6 +1,24 @@
-# Testing and Validation Documentation
+# Themis Checker Documentation
 
-This directory contains comprehensive documentation for testing and validating the UI optimization enhancements implemented in the Themis Checker application.
+This directory contains comprehensive documentation for the Themis Checker application, including setup guides, testing procedures, and validation scripts.
+
+## Setup Documentation
+
+### [github-app-setup.md](./github-app-setup.md)
+Complete guide for configuring the GitHub App with proper permissions:
+- Creating a new GitHub App
+- Updating existing app permissions
+- Required permissions (Contents: Read, Metadata: Read)
+- Installation instructions
+- Troubleshooting common issues
+- Security best practices
+
+### [github-app-manifest.json](./github-app-manifest.json)
+Template manifest file for quick GitHub App creation with correct permissions.
+
+## Testing and Validation Documentation
+
+This section covers testing and validating the UI optimization enhancements implemented in the Themis Checker application.
 
 ## Quick Start
 

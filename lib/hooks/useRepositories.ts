@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { queryKeys, RepositoryFilters } from '@/lib/query-keys';
 
-type RepositoryStatus = 'success' | 'warning' | 'error' | 'none';
+type RepositoryStatus = 'success' | 'warning' | 'error' | 'none' | 'failed';
 
 export interface Repository {
   id: number;
@@ -17,6 +17,9 @@ export interface Repository {
   lastCheckStatus: RepositoryStatus;
   lastCheckDate?: Date;
   issueCount?: number;
+  errorType?: string | null;
+  errorMessage?: string | null;
+  errorDetails?: string | null;
 }
 
 export interface RepositoriesResponse {

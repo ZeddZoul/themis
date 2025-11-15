@@ -9,11 +9,11 @@ export { useCheckHistory } from './useCheckHistory';
 export { useUser } from './useUser';
 export { useToast } from './useToast';
 export { 
-  useRenderTracking, 
-  useInteractionTracking, 
-  useComponentTiming,
-  useRenderPerformance 
-} from './usePerformance';
+  useMediaQuery, 
+  useIsMobile, 
+  useIsTablet, 
+  useIsDesktop 
+} from './useMediaQuery';
 
 export type { Repository, RepositoriesResponse } from './useRepositories';
 export type { DashboardStats } from './useDashboardStats';

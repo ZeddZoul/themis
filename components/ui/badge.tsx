@@ -28,20 +28,24 @@ export const Badge = React.memo<BadgeProps>(function Badge({ variant, size = 'md
 
   const variantStyles = {
     success: {
-      backgroundColor: colors.status.success,
-      color: '#FFFFFF',
+      backgroundColor: colors.status.success + '15',
+      color: colors.status.success,
+      border: `1px solid ${colors.status.success}40`,
     },
     warning: {
-      backgroundColor: colors.status.warning,
-      color: '#FFFFFF',
+      backgroundColor: colors.status.warning + '15',
+      color: colors.status.warning,
+      border: `1px solid ${colors.status.warning}40`,
     },
     error: {
-      backgroundColor: colors.status.error,
-      color: '#FFFFFF',
+      backgroundColor: colors.status.error + '15',
+      color: colors.status.error,
+      border: `1px solid ${colors.status.error}40`,
     },
     info: {
-      backgroundColor: colors.status.info,
-      color: '#FFFFFF',
+      backgroundColor: colors.status.info + '15',
+      color: colors.status.info,
+      border: `1px solid ${colors.status.info}40`,
     },
   };
 
@@ -54,7 +58,7 @@ export const Badge = React.memo<BadgeProps>(function Badge({ variant, size = 'md
 
   return (
     <span
-      className={`inline-flex items-center font-medium rounded-full transition-all duration-200 ${sizeStyles[size]} ${className}`}
+      className={`inline-flex items-center font-semibold rounded-md transition-all duration-200 ${sizeStyles[size]} ${className}`}
       style={variantStyles[variant]}
     >
       {showIcon && (

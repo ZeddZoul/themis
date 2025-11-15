@@ -28,14 +28,14 @@ interface UseDashboardStatsOptions {
 
 /**
  * Hook for fetching dashboard statistics
- * Uses shorter stale time (2 minutes) for more up-to-date stats
+ * Uses shorter stale time (30 seconds) for more up-to-date stats
  * Accepts initialData from Server Component for faster initial render
  */
 export function useDashboardStats(options?: UseDashboardStatsOptions) {
   return useQuery({
     queryKey: queryKeys.stats.dashboard,
     queryFn: fetchDashboardStats,
-    staleTime: 2 * 60 * 1000, // 2 minutes
+    staleTime: 30 * 1000, // 30 seconds
     initialData: options?.initialData,
   });
 }

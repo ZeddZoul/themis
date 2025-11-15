@@ -3,12 +3,15 @@
 import { useState, useCallback, useMemo, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
+import { useQueryClient } from '@tanstack/react-query';
 import { RepositoryCard } from '@/components/dashboard/RepositoryCard';
 import { Pagination } from '@/components/ui/pagination';
 import { SkeletonLoader } from '@/components/ui/loading-spinner';
+import { SkeletonCard } from '@/components/ui/SkeletonCard';
 import { colors } from '@/lib/design-system';
 import { useToast } from '@/lib/hooks/useToast';
 import { useRepositories, Repository } from '@/lib/hooks/useRepositories';
+import { queryKeys } from '@/lib/query-keys';
 import { DynamicIcon } from '@/lib/icons';
 import { FaCodeBranch } from 'react-icons/fa';
 
@@ -32,6 +35,7 @@ const SearchBar = dynamic(
 
 export default function RepositoriesPage() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const { showToast } = useToast();
   
   const [searchQuery, setSearchQuery] = useState('');
@@ -81,10 +85,68 @@ export default function RepositoriesPage() {
     setCurrentPage(page);
   }, []);
 
-  // Handle repository click
+  // Handle repository click - navigate to check history for that repo
   const handleRepositoryClick = useCallback((repo: Repository) => {
-    router.push(`/check/${repo.id}`);
+    const [owner, repoName] = repo.full_name.split('/');
+    router.push(`/checks/${owner}/${repoName}`);
   }, [router]);
+
+  // Handle start check - initiate compliance check and navigate to results
+  const handleStartCheck = useCallback(async (repo: Repository, platform: string, branch: string) => {
+    try {
+      // Store repo info for loading screen
+      sessionStorage.setItem('check_loading', JSON.stringify({
+        repoId: repo.id,
+        repoName: repo.full_name,
+      }));
+      
+      // Navigate to check page with loading state
+      router.push(`/check/${repo.id}`);
+
+      const response = await fetch('/api/v1/checks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          repoId: repo.id,
+          checkType: platform,
+          branchName: branch,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to start check');
+      }
+
+      const data = await response.json();
+      
+      // Store results for the check page
+      sessionStorage.setItem('check_results', JSON.stringify({
+        ...data,
+        repoName: repo.full_name,
+      }));
+      
+      // Remove loading flag
+      sessionStorage.removeItem('check_loading');
+      
+      // Invalidate queries to refresh data
+      queryClient.invalidateQueries({ queryKey: queryKeys.repositories.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.stats.dashboard });
+      queryClient.invalidateQueries({ queryKey: queryKeys.checks.all });
+      
+      // Force a re-render of the check page by navigating again
+      router.replace(`/check/${repo.id}`);
+    } catch (error) {
+      console.error('Check failed:', error);
+      sessionStorage.removeItem('check_loading');
+      showToast({
+        type: 'error',
+        message: error instanceof Error ? error.message : 'Failed to start compliance check',
+      });
+      // Navigate back to repos on error
+      router.push('/dashboard/repos');
+    }
+  }, [router, showToast, queryClient]);
 
   return (
     <div className="min-h-screen">
@@ -131,12 +193,8 @@ export default function RepositoriesPage() {
 
         {/* Loading State */}
         {isLoading && (
-          <div className="space-y-4" role="status" aria-live="polite" aria-label="Loading repositories">
-            {Array.from({ length: 5 }).map((_, i) => (
-              <div key={i} className="p-4 border rounded-lg" style={{ borderColor: colors.text.secondary + '40' }}>
-                <SkeletonLoader variant="card" />
-              </div>
-            ))}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6" role="status" aria-live="polite" aria-label="Loading repositories">
+            <SkeletonCard count={6} />
             <span className="sr-only">Loading repositories...</span>
           </div>
         )}
@@ -192,7 +250,7 @@ export default function RepositoriesPage() {
         {/* Repository List */}
         {!isLoading && !error && repositories.length > 0 && (
           <>
-            <div className="space-y-3 sm:space-y-4 mb-4 sm:mb-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 mb-4 sm:mb-6">
               {repositories.map((repo) => (
                 <RepositoryCard
                   key={repo.id}
@@ -203,7 +261,11 @@ export default function RepositoriesPage() {
                   status={repo.lastCheckStatus}
                   lastCheckDate={repo.lastCheckDate}
                   issueCount={repo.issueCount}
+                  errorType={repo.errorType}
+                  errorMessage={repo.errorMessage}
+                  errorDetails={repo.errorDetails}
                   onClick={() => handleRepositoryClick(repo)}
+                  onStartCheck={(platform, branch) => handleStartCheck(repo, platform, branch)}
                 />
               ))}
             </div>
