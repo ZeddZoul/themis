@@ -43,7 +43,7 @@ export async function POST(request: Request) {
     });
 
     const totalChecks = checks.length;
-    const passedChecks = checks.filter(c => c.status === 'COMPLETED' && !c.errorType).length; // Assuming COMPLETED means passed logic, but actually status is COMPLETED even if issues found.
+    const passedChecks = checks.filter((c: { status: string; errorType: string | null }) => c.status === 'COMPLETED' && !c.errorType).length; // Assuming COMPLETED means passed logic, but actually status is COMPLETED even if issues found.
     // Let's refine: COMPLETED means it ran. PASS means no issues?
     // The current logic says status='COMPLETED' even if issues found.
     // Let's assume "Passed" means 0 high severity issues? Or just "Completed successfully"?
