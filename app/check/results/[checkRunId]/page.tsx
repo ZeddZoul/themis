@@ -12,7 +12,10 @@ import { getCheckRunErrorMessage } from '@/lib/error-messages';
 import { ErrorDisplay } from '@/components/ui/error-display';
 import { useIsMobile } from '@/lib/hooks/useMediaQuery';
 import { useToast } from '@/lib/hooks/useToast';
-import { FaChevronLeft, FaCodeBranch, FaFileDownload } from 'react-icons/fa';
+import { FaChevronLeft, FaCodeBranch } from 'react-icons/fa';
+import { EnhancedLoading } from '@/components/ui/enhanced-loading';
+import { ResultsSkeleton } from '@/components/ui/skeletons';
+import { ExportDropdown, ExportFormat } from '@/components/ui/ExportDropdown';
 
 interface Issue {
   severity: 'high' | 'medium' | 'low';
@@ -20,6 +23,14 @@ interface Issue {
   description: string;
   solution: string;
   file?: string;
+  aiPinpointLocation?: {
+    filePath: string;
+    lineNumbers: number[];
+  };
+  aiSuggestedFix?: {
+    explanation: string;
+    codeSnippet: string;
+  };
 }
 
 interface CheckResults {
@@ -46,7 +57,7 @@ export default function CheckResultsPage() {
   const { showToast } = useToast();
   const [results, setResults] = useState<CheckResults | null>(null);
   const [loading, setLoading] = useState(true);
-  const [exportingReport, setExportingReport] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
   /**
    * Effect: Load check results from API
@@ -97,54 +108,93 @@ export default function CheckResultsPage() {
     low: results?.issues.filter(issue => issue.severity === 'low') || [],
   }), [results?.issues]);
 
-  // Handle export report functionality
-  const handleExportReport = useCallback(async () => {
-    if (!results || !results.repoName || !params.checkRunId) return;
 
-    setExportingReport(true);
+
+  // Unified export handler for all formats
+  const handleExport = useCallback(async (format: ExportFormat) => {
+    if (!params.checkRunId || !results) return;
+
+    setExporting(true);
     
     try {
-      const response = await fetch('/api/v1/reports/export', {
+      let endpoint = '';
+      let contentType = '';
+      let fileExtension = '';
+
+      switch (format) {
+        case 'pdf':
+          endpoint = '/api/v1/reports/export/pdf';
+          contentType = 'application/pdf';
+          fileExtension = 'pdf';
+          break;
+        case 'md':
+          endpoint = '/api/v1/reports/export';
+          contentType = 'application/json';
+          fileExtension = 'md';
+          break;
+        case 'yaml':
+          endpoint = '/api/v1/reports/export/yaml';
+          contentType = 'application/x-yaml';
+          fileExtension = 'yaml';
+          break;
+        case 'txt':
+          endpoint = '/api/v1/reports/export/txt';
+          contentType = 'text/plain';
+          fileExtension = 'txt';
+          break;
+      }
+
+      // Send the full data for all formats - more efficient than database lookups
+      const requestBody = {
+        repoName: results.repoName,
+        branchName: results.branchName,
+        checkType: results.checkType,
+        summary: results.summary,
+        issues: results.issues,
+        checkRunId: params.checkRunId, // Keep this for filename generation
+      };
+
+      const response = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          checkRunId: params.checkRunId,
-          repoName: results.repoName,
-          branchName: results.branchName,
-          checkType: results.checkType,
-          summary: results.summary,
-          issues: results.issues,
-        }),
+        body: JSON.stringify(requestBody),
       });
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to generate report');
+        throw new Error(errorData.error || `Failed to generate ${format.toUpperCase()}`);
       }
 
-      // Get the markdown content
-      const reportData = await response.json();
-      
-      // Create filename following the convention: themis-report-[repo-name]-[YYYY-MM-DD].md
-      const today = new Date().toISOString().split('T')[0];
-      const repoNameClean = results.repoName.replace(/[^a-zA-Z0-9-]/g, '-').toLowerCase();
-      const filename = `themis-report-${repoNameClean}-${today}.md`;
-      
-      // Create and download the file
-      const blob = new Blob([reportData.markdown], { type: 'text/markdown;charset=utf-8;' });
-      const link = document.createElement('a');
-      const url = URL.createObjectURL(blob);
-      link.setAttribute('href', url);
-      link.setAttribute('download', filename);
-      link.style.visibility = 'hidden';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
+      // Handle markdown differently (returns JSON)
+      if (format === 'md') {
+        const reportData = await response.json();
+        const blob = new Blob([reportData.markdown], { type: 'text/markdown;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        const checkRunIdStr = Array.isArray(params.checkRunId) ? params.checkRunId[0] : params.checkRunId;
+        link.download = `themis-report-${checkRunIdStr.substring(0, 8)}.md`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+      } else {
+        // Handle binary formats (PDF, YAML, TXT)
+        const blob = await response.blob();
+        const filename = response.headers.get('Content-Disposition')?.split('filename=')[1]?.replace(/"/g, '') || `report.${fileExtension}`;
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+      }
 
       showToast({
         type: 'success',
-        message: 'Report exported successfully!',
+        message: `${format.toUpperCase()} Report exported successfully!`,
       });
     } catch (error) {
       console.error('Export failed:', error);
@@ -153,16 +203,12 @@ export default function CheckResultsPage() {
         message: error instanceof Error ? error.message : 'Failed to export report',
       });
     } finally {
-      setExportingReport(false);
+      setExporting(false);
     }
-  }, [results, params.checkRunId, showToast]);
+  }, [params.checkRunId, results, showToast]);
 
   if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <LoadingSpinner size="lg" />
-      </div>
-    );
+    return <ResultsSkeleton />;
   }
 
   if (!results) {
@@ -211,75 +257,16 @@ export default function CheckResultsPage() {
   return (
     <div className="relative">
       {/* Export Loading Overlay */}
-      {exportingReport && (
-        <div 
-          className="fixed inset-0 flex items-center justify-center z-50"
-          style={{ backgroundColor: 'rgba(0, 0, 0, 0.8)' }}
-        >
-          <div 
-            className="rounded-xl p-8 max-w-md mx-4 text-center shadow-2xl border"
-            style={{ 
-              backgroundColor: colors.background.main,
-              borderColor: colors.text.secondary + '20'
-            }}
-          >
-            <div className="flex justify-center mb-6">
-              <div className="relative">
-                <div 
-                  className="w-16 h-16 rounded-full border-4 border-t-transparent animate-spin"
-                  style={{ 
-                    borderColor: colors.primary.accent + '20',
-                    borderTopColor: colors.primary.accent
-                  }}
-                />
-                <div 
-                  className="absolute inset-0 w-16 h-16 rounded-full border-4 border-transparent border-t-current animate-pulse"
-                  style={{ color: colors.primary.accent }}
-                />
-              </div>
-            </div>
-            <h3 
-              className="text-xl font-semibold mb-2"
-              style={{ color: colors.text.primary }}
-            >
-              Generating Report
-            </h3>
-            <p 
-              className="text-base mb-4"
-              style={{ color: colors.text.secondary }}
-            >
-              Themis is preparing your comprehensive compliance report...
-            </p>
-            <div className="flex justify-center">
-              <div className="flex space-x-1">
-                <div 
-                  className="w-2 h-2 rounded-full animate-bounce"
-                  style={{ 
-                    backgroundColor: colors.primary.accent,
-                    animationDelay: '0ms'
-                  }}
-                />
-                <div 
-                  className="w-2 h-2 rounded-full animate-bounce"
-                  style={{ 
-                    backgroundColor: colors.primary.accent,
-                    animationDelay: '150ms'
-                  }}
-                />
-                <div 
-                  className="w-2 h-2 rounded-full animate-bounce"
-                  style={{ 
-                    backgroundColor: colors.primary.accent,
-                    animationDelay: '300ms'
-                  }}
-                />
-              </div>
-            </div>
-          </div>
-        </div>
+      {exporting && (
+        <EnhancedLoading 
+          title="Generating Report"
+          subtitle="Themis is preparing your comprehensive compliance report..."
+          enableRealTimeSync={false}
+        />
       )}
 
-      {/* Page Header */}
+
+
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
         <div>
           <h1 
@@ -299,19 +286,11 @@ export default function CheckResultsPage() {
         <div className="flex items-center gap-3">
           {/* Export Report Button - Only show if check succeeded */}
           {results.status !== 'FAILED' && (
-            <Button 
-              onClick={handleExportReport}
-              disabled={exportingReport}
-              className="flex items-center gap-2"
-              style={{
-                backgroundColor: colors.primary.accent,
-                color: 'white',
-                opacity: exportingReport ? 0.6 : 1,
-              }}
-            >
-              <FaFileDownload size={14} />
-              <span>{isMobile ? 'Export' : 'Export Report'}</span>
-            </Button>
+            <ExportDropdown 
+              onExport={handleExport}
+              disabled={false}
+              isExporting={exporting}
+            />
           )}
           
           <Button 

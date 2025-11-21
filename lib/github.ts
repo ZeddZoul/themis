@@ -10,7 +10,13 @@ import { createAppAuth } from '@octokit/auth-app';
  * 
  * For setup instructions, see: docs/github-app-setup.md
  */
-export function getGithubClient() {
+export function getGithubClient(accessToken?: string) {
+  if (accessToken) {
+    return new Octokit({
+      auth: accessToken,
+    });
+  }
+
   const hasGithubConfig = process.env.GITHUB_APP_ID && process.env.GITHUB_APP_PRIVATE_KEY;
 
   if (hasGithubConfig) {
@@ -31,16 +37,18 @@ export async function getFileContent(
   owner: string,
   repo: string,
   path: string,
-  branch?: string
+  branch?: string,
+  accessToken?: string
 ): Promise<string | null> {
   try {
-    const octokit = getGithubClient();
+    const octokit = getGithubClient(accessToken);
     const { data: content }: any = await octokit.request(
       'GET /repos/{owner}/{repo}/contents/{path}',
       { owner, repo, path, ref: branch }
     );
     return Buffer.from(content.content, 'base64').toString('utf-8');
   } catch (error) {
+    console.error(`[GitHub] Error fetching ${path}:`, error);
     return null;
   }
 }

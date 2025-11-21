@@ -47,7 +47,7 @@ export function MobileHeader({ onMenuClick }: MobileHeaderProps) {
     }
 
     // Default fallback
-    return 'Themis Checker';
+    return 'Themis';
   };
 
   const pageName = getPageName(pathname);

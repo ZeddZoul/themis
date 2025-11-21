@@ -119,8 +119,8 @@ export const IssueCard = React.memo<IssueCardProps>(function IssueCard({ issue }
       {/* Expanded Content */}
       {isExpanded && (
         <div className="px-3 sm:px-4 pb-3 sm:pb-4 space-y-3 sm:space-y-4 animate-fadeIn">
-          {/* Themis Pinpoint Location - First */}
-          {issue.aiPinpointLocation && issue.aiPinpointLocation.lineNumbers.length > 0 && (
+          {/* Themis Pinpoint Location - First (only for existing files with line numbers) */}
+          {issue.aiPinpointLocation && issue.aiPinpointLocation.lineNumbers && issue.aiPinpointLocation.lineNumbers.length > 0 && (
             <div 
               className="p-3 sm:p-4 rounded-lg border"
               style={{ 
@@ -184,8 +184,8 @@ export const IssueCard = React.memo<IssueCardProps>(function IssueCard({ issue }
             </div>
           </div>
 
-          {/* Themis Suggested Fix - Third */}
-          {issue.aiSuggestedFix && issue.aiSuggestedFix.codeSnippet && (
+          {/* Themis Suggested Fix - Third (shows for both existing and missing files) */}
+          {issue.aiSuggestedFix && (issue.aiSuggestedFix.codeSnippet || issue.aiSuggestedFix.explanation) && (
             <div 
               className="p-3 sm:p-4 rounded-lg border-l-4"
               style={{ 
@@ -211,22 +211,41 @@ export const IssueCard = React.memo<IssueCardProps>(function IssueCard({ issue }
                   >
                     Themis-Suggested Fix
                   </h3>
-                  <p 
-                    className="text-xs sm:text-sm mb-2"
-                    style={{ color: '#064E3B' }}
-                  >
-                    {issue.aiSuggestedFix.explanation}
-                  </p>
-                  <pre 
-                    className="text-xs p-2 rounded overflow-x-auto"
-                    style={{ 
-                      backgroundColor: '#ECFDF5',
-                      color: '#064E3B',
-                      border: '1px solid #A7F3D0',
-                    }}
-                  >
-                    <code>{issue.aiSuggestedFix.codeSnippet}</code>
-                  </pre>
+                  {issue.aiSuggestedFix.explanation && (
+                    <p 
+                      className="text-xs sm:text-sm mb-2"
+                      style={{ color: '#064E3B' }}
+                    >
+                      {issue.aiSuggestedFix.explanation}
+                    </p>
+                  )}
+                  {issue.aiSuggestedFix.codeSnippet && (
+                    <div className="relative group">
+                      <pre 
+                        className="text-xs p-2 rounded overflow-x-auto"
+                        style={{ 
+                          backgroundColor: '#ECFDF5',
+                          color: '#064E3B',
+                          border: '1px solid #A7F3D0',
+                        }}
+                      >
+                        <code>{issue.aiSuggestedFix.codeSnippet}</code>
+                      </pre>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigator.clipboard.writeText(issue.aiSuggestedFix!.codeSnippet);
+                          // Could add a toast here or change icon temporarily
+                        }}
+                        className="absolute top-1 right-1 p-1 rounded opacity-0 group-hover:opacity-100 transition-opacity bg-white shadow-sm border border-gray-200 hover:bg-gray-50"
+                        title="Copy code"
+                      >
+                        <svg className="w-3 h-3 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

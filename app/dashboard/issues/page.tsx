@@ -178,17 +178,20 @@ export default function IssuesHistoryPage() {
         message: `Successfully deleted ${checkRunIds.length} check run${checkRunIds.length > 1 ? 's' : ''}`,
       });
 
-      // Immediately invalidate and refetch the cache
+      // Invalidate all related queries to ensure fresh data
       await queryClient.invalidateQueries({
-        queryKey: queryKeys.checks.history(queryFilters),
+        queryKey: queryKeys.checks.all,
       });
       
       // Also invalidate dashboard stats since they might be affected
       await queryClient.invalidateQueries({
-        queryKey: queryKeys.stats.dashboard,
+        queryKey: queryKeys.stats.all,
       });
 
-      // Reset optimistic updates flag after cache invalidation
+      // Force a refetch to get the latest data
+      await refetch();
+
+      // Reset optimistic updates flag after successful sync
       setHasOptimisticUpdates(false);
       
     } catch (error) {

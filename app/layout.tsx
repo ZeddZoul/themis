@@ -8,7 +8,7 @@ const inter = Inter({ subsets: ["latin"] });
 
 
 export const metadata: Metadata = {
-  title: "Themis Checker - Mobile App Compliance",
+  title: "Themis - Mobile App Compliance",
   description: "Automated compliance checking for Apple App Store and Google Play Store",
   icons: {
     icon: '/icon.png',

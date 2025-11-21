@@ -103,7 +103,7 @@ export function Sidebar() {
       >
         {!isCollapsed ? (
           <Image 
-            alt='Themis Checker logo' 
+            alt='Themis logo' 
             src="/logo.png" 
             width={isMobile ? 120 : 150} 
             height={isMobile ? 69 : 86}
@@ -115,7 +115,7 @@ export function Sidebar() {
           />
         ) : (
           <Image 
-            alt='Themis Checker icon' 
+            alt='Themis icon' 
             src="/icon.png" 
             width={32} 
             height={32}

@@ -26,7 +26,7 @@ The GitHub App requires the following **read-only** permissions:
 
 ## Creating a New GitHub App
 
-If you're setting up the Themis Checker GitHub App for the first time, follow these steps:
+If you're setting up the Themis GitHub App for the first time, follow these steps:
 
 ### Option A: Using the Manifest (Recommended)
 

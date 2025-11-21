@@ -12,6 +12,7 @@ model User {
   githubId      String         @unique
   email         String         @unique
   name          String?
+  apiKey        String?        @unique
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
   installations Installation[]
@@ -60,4 +61,19 @@ model CheckRun {
   @@index([owner, repo])
   @@index([status])
   @@index([createdAt])
+}
+
+model DailyStats {
+  id             String   @id @default(cuid())
+  date           DateTime @unique // Midnight of the day
+  totalChecks    Int      @default(0)
+  passedChecks   Int      @default(0)
+  failedChecks   Int      @default(0)
+  totalIssues    Int      @default(0)
+  highSeverity   Int      @default(0)
+  mediumSeverity Int      @default(0)
+  lowSeverity    Int      @default(0)
+  averageScore   Float    @default(0) // 0-100 compliance score
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 }

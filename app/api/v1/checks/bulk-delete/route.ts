@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/session';
 import { prisma } from '@/lib/prisma';
+import { revalidateTag } from 'next/cache';
 
 export async function DELETE(request: NextRequest) {
   const session = await getSession();
@@ -30,6 +31,11 @@ export async function DELETE(request: NextRequest) {
         },
       },
     });
+
+    // Revalidate cache tags after successful deletion
+    revalidateTag('checks');
+    revalidateTag('dashboard-stats');
+    revalidateTag('check-history');
 
     return NextResponse.json({
       success: true,

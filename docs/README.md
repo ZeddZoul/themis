@@ -1,4 +1,4 @@
-# Themis Checker Documentation
+# Themis Documentation
 
 This directory contains comprehensive documentation for the Themis Checker application, including setup guides, testing procedures, and validation scripts.
 

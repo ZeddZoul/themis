@@ -1,0 +1,22 @@
+name: 'Themis Compliance Check'
+description: 'Run automated compliance checks for mobile apps using Themis'
+author: 'Themis'
+inputs:
+  themis-app-url:
+    description: 'URL of your Themis instance'
+    required: true
+  themis-api-key:
+    description: 'API Key for authentication'
+    required: true
+  check-type:
+    description: 'Type of check to run (MOBILE_PLATFORMS, APPLE_APP_STORE, etc.)'
+    required: false
+    default: 'MOBILE_PLATFORMS'
+
+runs:
+  using: 'node20'
+  main: 'dist/index.js' # Note: In a real action, we'd compile the script. For now this is a placeholder.
+
+branding:
+  icon: 'shield'
+  color: 'purple'

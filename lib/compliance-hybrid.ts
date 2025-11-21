@@ -5,12 +5,14 @@
  * for reliable, consistent, and intelligent compliance checking
  */
 
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { GoogleGenAI } from '@google/genai';
 import { getFileContent } from './github';
 import { prisma } from './prisma';
 import { evaluateRules, type Platform as RulePlatform, type ComplianceRule } from './compliance-rules';
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
+const genAI = new GoogleGenAI({
+  apiKey: process.env.GEMINI_API_KEY || '',
+});
 
 interface ComplianceIssue {
   // Deterministic fields (from rules engine)
@@ -45,18 +47,30 @@ export interface AnalysisResult {
 /**
  * Main analysis function: Deterministic + AI Augmentation
  */
+import * as fs from 'fs';
+import * as path from 'path';
+
+function logDebug(message: string) {
+  const logFile = path.join(process.cwd(), 'debug-log.txt');
+  const timestamp = new Date().toISOString();
+  fs.appendFileSync(logFile, `[${timestamp}] ${message}\n`);
+}
+
 export async function analyzeRepositoryCompliance(
   owner: string,
   repo: string,
   checkType: 'APPLE_APP_STORE' | 'GOOGLE_PLAY_STORE' | 'CHROME_WEB_STORE' | 'MOBILE_PLATFORMS',
-  branchName?: string
+  branchName?: string,
+  accessToken?: string
 ): Promise<AnalysisResult> {
   try {
-    console.log(`[Hybrid Engine] Starting analysis for ${owner}/${repo}@${branchName || 'default'} (${checkType})`);
+    logDebug(`Starting analysis for ${owner}/${repo}@${branchName || 'default'} (${checkType})`);
+    logDebug(`Access Token present: ${!!accessToken}`);
     
     // Step 1: Fetch repository files
-    const files = await fetchRelevantFiles(owner, repo, branchName);
-    console.log(`[Hybrid Engine] Fetched ${Object.keys(files).filter(k => files[k]).length} files`);
+    const files = await fetchRelevantFiles(owner, repo, branchName, accessToken);
+    logDebug(`Fetched ${Object.keys(files).filter(k => files[k]).length} files`);
+    logDebug(`File names: ${Object.keys(files).join(', ')}`);
     
     // Step 2: Run deterministic rules engine
     console.log(`[Hybrid Engine] Running deterministic rules engine...`);
@@ -83,13 +97,26 @@ export async function analyzeRepositoryCompliance(
     
     // Step 5: AI Augmentation (async, non-blocking)
     console.log(`[Hybrid Engine] Starting AI augmentation for ${allIssues.length} issues...`);
+    console.log(`[Hybrid Engine] Available files for augmentation:`, Object.keys(files).length);
+    console.log(`[Hybrid Engine] Available file names:`, Object.keys(files));
+    
     const augmentedIssues = await Promise.all(
-      allIssues.map(async (issue) => {
+      allIssues.map(async (issue, index) => {
         try {
+          console.log(`[Hybrid Engine] Processing issue ${index + 1}/${allIssues.length}: ${issue.ruleId}`);
           const augmentation = await augmentIssueWithAI(issue, files, checkType);
+          const hasAugmentation = Object.keys(augmentation).length > 0;
+          console.log(`[Hybrid Engine] Issue ${issue.ruleId} augmentation result: ${hasAugmentation ? 'SUCCESS' : 'NO_AUGMENTATION'}`);
           return { ...issue, ...augmentation };
         } catch (error) {
-          console.error(`[Hybrid Engine] AI augmentation failed for ${issue.ruleId}:`, error);
+          console.error(`[Hybrid Engine] AI augmentation failed for ${issue.ruleId}:`, {
+            error: error instanceof Error ? error.message : String(error),
+            stack: error instanceof Error ? error.stack : undefined,
+            ruleId: issue.ruleId,
+            severity: issue.severity,
+            category: issue.category,
+            timestamp: new Date().toISOString(),
+          });
           return issue; // Return deterministic issue without augmentation
         }
       })
@@ -102,7 +129,15 @@ export async function analyzeRepositoryCompliance(
       success: true,
     };
   } catch (error) {
-    console.error('[Hybrid Engine] Unexpected error:', error);
+    console.error('[Hybrid Engine] Unexpected error:', {
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+      owner,
+      repo,
+      branch: branchName,
+      checkType,
+      timestamp: new Date().toISOString(),
+    });
     return {
       issues: [],
       success: false,
@@ -116,12 +151,14 @@ export async function analyzeRepositoryCompliance(
 async function fetchRelevantFiles(
   owner: string,
   repo: string,
-  branchName?: string
+  branchName?: string,
+  accessToken?: string
 ): Promise<{ [key: string]: string | null }> {
   const filesToCheck = [
     // Core documentation
     'README.md',
     'LICENSE',
+    'index.html',
     
     // Mobile app files
     'package.json',
@@ -156,7 +193,7 @@ async function fetchRelevantFiles(
 
   for (const file of filesToCheck) {
     try {
-      const content = await getFileContent(owner, repo, file, branchName);
+      const content = await getFileContent(owner, repo, file, branchName, accessToken);
       files[file] = content;
       if (content) {
         console.log(`[Hybrid Engine] ✓ Fetched ${file}`);
@@ -185,17 +222,27 @@ function findRelevantFile(
   }
   
   const category = rule.category.toLowerCase();
+  
+  // Helper to find first existing file from a list
+  const findFirstExisting = (candidates: string[]) => {
+    for (const f of candidates) {
+      if (files[f]) return f;
+    }
+    return undefined;
+  };
+
   if (category.includes('privacy')) {
-    return files['PRIVACY.md'] ? 'PRIVACY.md' : 'README.md';
+    return findFirstExisting(['PRIVACY.md', 'privacy-policy.md', 'README.md', 'index.html']) || 'README.md';
   }
   if (category.includes('permission')) {
-    return files['AndroidManifest.xml'] ? 'AndroidManifest.xml' : 'README.md';
+    return findFirstExisting(['AndroidManifest.xml', 'Info.plist', 'app.json', 'README.md', 'index.html']) || 'README.md';
   }
   if (category.includes('description')) {
-    return files['README.md'] ? 'README.md' : 'package.json';
+    return findFirstExisting(['README.md', 'index.html', 'package.json']) || 'README.md';
   }
   
-  return 'README.md';
+  // General fallback: try to find any common file that exists
+  return findFirstExisting(['README.md', 'index.html', 'package.json']) || 'README.md';
 }
 
 /**
@@ -222,30 +269,48 @@ async function augmentIssueWithAI(
   files: { [key: string]: string | null },
   checkType: string
 ): Promise<AIAugmentation> {
+  const relevantFile = issue.file;
   try {
-    const relevantFile = issue.file;
-    if (!relevantFile || !files[relevantFile]) {
-      return {};
-    }
-
-    const fileContent = files[relevantFile];
-    if (!fileContent) {
-      return {};
-    }
-
-    // Add line numbers
-    const lines = fileContent.split('\n');
-    const numberedContent = lines
-      .map((line, idx) => `${idx + 1}: ${line}`)
-      .slice(0, 200) // Increased to 200 lines for better content analysis
-      .join('\n');
-
-    console.log(`[AI Augmentation] Processing ${issue.ruleId} for ${relevantFile}...`);
+    console.log(`[AI Augmentation] Starting augmentation for ${issue.ruleId}, file: ${relevantFile || 'undefined'}`);
     
-    const model = genAI.getGenerativeModel({ model: 'gemini-3.0-pro' });
+    if (!relevantFile) {
+      console.log(`[AI Augmentation] Skipping ${issue.ruleId} - no relevant file`);
+      return {};
+    }
 
-    // Enhanced prompt for both location finding and content validation
-    const prompt = `You are a compliance expert for ${checkType} app store policies. A compliance violation has been detected:
+    console.log(`[AI Augmentation] Looking for file key: "${relevantFile}" in files object`);
+    console.log(`[AI Augmentation] File exists in object: ${relevantFile in files}`);
+    console.log(`[AI Augmentation] File content exists: ${!!files[relevantFile]}`);
+    
+    if (!relevantFile) {
+      console.log(`[AI Augmentation] Skipping ${issue.ruleId} - no relevant file`);
+      return {};
+    }
+
+    // Note: We don't early-return if file is not found
+    // The AI should provide "create this file" guidance for missing files
+    // This is checked below in the fileContent conditional
+    console.log(`[AI Augmentation] File in fetched collection: ${relevantFile in files ? 'YES' : 'NO'}`);
+
+    // Logic for handling file content is below
+
+    const fileContent = relevantFile ? files[relevantFile] : null;
+    
+    let prompt = '';
+    
+    if (fileContent) {
+      // Case 1: File exists, analyze it
+      const lines = fileContent.split('\n');
+      const numberedContent = lines
+        .map((line, idx) => `${idx + 1}: ${line}`)
+        .slice(0, 300) // Increased context
+        .join('\n');
+
+      console.log(`[AI Augmentation] Processing ${issue.ruleId} for ${relevantFile}...`);
+      console.log(`[AI Augmentation] File content length: ${fileContent.length} chars`);
+      
+      // Enhanced prompt for both location finding and content validation
+      prompt = `You are a compliance expert for ${checkType} app store policies. A compliance violation has been detected:
 
 Rule ID: ${issue.ruleId}
 Category: ${issue.category}
@@ -259,18 +324,12 @@ ${numberedContent}
 \`\`\`
 
 Tasks:
-1. Validate if the file content is legitimate and compliant (not just placeholder/fake content)
-2. Identify exact line numbers where this rule is violated or where a fix should be added
+1. Validate if the file content is legitimate and compliant
+2. Identify exact line numbers where this rule is violated
 3. Provide specific, actionable code fixes
 
-For content validation, check for:
-- Placeholder text (e.g., "Lorem ipsum", "TODO", "Coming soon", "Your app name here")
-- Generic/template content that hasn't been customized
-- Missing required information for the compliance rule
-- Fake or insufficient privacy policy content
-- Incomplete or non-functional configuration
-
-Respond ONLY with valid JSON:
+Respond ONLY with a single valid JSON object. Do not include any other text, explanations, or markdown formatting outside the JSON.
+The JSON must follow this structure:
 {
   "isLegitimate": boolean,
   "contentIssues": ["list of specific content problems found"],
@@ -279,34 +338,115 @@ Respond ONLY with valid JSON:
   "explanation": "brief explanation of the violation",
   "codeSnippet": "exact code to add/modify"
 }`;
+    } else {
+      // Case 2: File is missing, generate it
+      logDebug(`[AI Augmentation] File ${relevantFile} is missing. Requesting generation.`);
+      
+      prompt = `You are a compliance expert for ${checkType} app store policies. A compliance violation has been detected because a required file or section is MISSING:
 
-    const result = await model.generateContent(prompt);
-    const text = result.response.text();
+Rule ID: ${issue.ruleId}
+Category: ${issue.category}
+Description: ${issue.description}
+Platform: ${checkType}
+Missing File: ${relevantFile || 'Unknown'}
+
+Tasks:
+1. Explain why this file/section is required
+2. Provide a COMPLETE template or code snippet to create this file/section and satisfy the rule
+
+Respond ONLY with a single valid JSON object. Do not include any other text, explanations, or markdown formatting outside the JSON.
+The JSON must follow this structure:
+{
+  "isLegitimate": false,
+  "contentIssues": ["File is missing"],
+  "suggestions": ["Create the file with the provided content"],
+  "lineNumbers": [],
+  "explanation": "Explanation of why this file is needed",
+  "codeSnippet": "Complete code/content for the new file"
+}`;
+    }
+
+    console.log(`[AI Augmentation] Sending prompt to Gemini 2.5 Pro...`);
     
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (jsonMatch) {
-      const augmentation = JSON.parse(jsonMatch[0]);
-      console.log(`[AI Augmentation] ✓ Success for ${issue.ruleId} - Legitimate: ${augmentation.isLegitimate}`);
-      return {
-        aiPinpointLocation: {
-          filePath: relevantFile,
-          lineNumbers: augmentation.lineNumbers || [],
-        },
-        aiSuggestedFix: {
-          explanation: augmentation.explanation || '',
-          codeSnippet: augmentation.codeSnippet || '',
-        },
-        aiContentValidation: {
-          isLegitimate: augmentation.isLegitimate || false,
-          issues: augmentation.contentIssues || [],
-          suggestions: augmentation.suggestions || [],
-        },
-      };
+    let result;
+    try {
+      result = await genAI.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: prompt,
+      });
+    } catch (apiError) {
+      console.error(`[AI Augmentation] ❌ Gemini API call failed for ${issue.ruleId}:`, {
+        error: apiError instanceof Error ? apiError.message : String(apiError),
+        stack: apiError instanceof Error ? apiError.stack : undefined,
+      });
+      return {};
     }
     
-    return {};
+    const text = result.text || '';
+    
+    console.log(`[AI Augmentation] ✅ Gemini response received for ${issue.ruleId}. Length: ${text.length}`);
+    console.log(`[AI Augmentation] Raw response preview: ${text.substring(0, 100)}...`);
+    
+    // Clean up the response text to ensure we extract valid JSON
+    let cleanText = text.trim();
+    
+    // Remove markdown code blocks if present
+    if (cleanText.startsWith('```json')) {
+      cleanText = cleanText.replace(/^```json\s*/, '').replace(/\s*```$/, '');
+    } else if (cleanText.startsWith('```')) {
+      cleanText = cleanText.replace(/^```\s*/, '').replace(/\s*```$/, '');
+    }
+
+    // Find the first '{' and last '}' to extract the JSON object
+    const firstOpen = cleanText.indexOf('{');
+    const lastClose = cleanText.lastIndexOf('}');
+    
+    let jsonString = '';
+    if (firstOpen !== -1 && lastClose !== -1 && lastClose > firstOpen) {
+      jsonString = cleanText.substring(firstOpen, lastClose + 1);
+    } else {
+      jsonString = cleanText; // Try parsing the whole text if no braces found (unlikely but possible)
+    }
+
+    if (jsonString) {
+      console.log(`[AI Augmentation] Attempting to parse JSON for ${issue.ruleId}...`);
+      try {
+        const augmentation = JSON.parse(jsonString);
+        console.log(`[AI Augmentation] ✅ Successfully parsed JSON for ${issue.ruleId}`);
+        console.log(`[AI Augmentation] Augmentation has explanation: ${!!augmentation.explanation}`);
+        console.log(`[AI Augmentation] Augmentation has codeSnippet: ${!!augmentation.codeSnippet}`);
+        console.log(`[AI Augmentation] Augmentation has lineNumbers: ${!!augmentation.lineNumbers}`);
+        return {
+          aiPinpointLocation: {
+            filePath: relevantFile,
+            lineNumbers: augmentation.lineNumbers || [],
+          },
+          aiSuggestedFix: {
+            explanation: augmentation.explanation || '',
+            codeSnippet: augmentation.codeSnippet || '',
+          },
+          aiContentValidation: {
+            isLegitimate: augmentation.isLegitimate || false,
+            issues: augmentation.contentIssues || [],
+            suggestions: augmentation.suggestions || [],
+          },
+        };
+      } catch (parseError) {
+        console.error(`[AI Augmentation] ❌ JSON parse error for ${issue.ruleId}:`, parseError);
+        console.log(`[AI Augmentation] Failed JSON string: ${jsonString.substring(0, 200)}`);
+        return {};
+      }
+    } else {
+      console.warn(`[AI Augmentation] ⚠️ No JSON found in response for ${issue.ruleId}`);
+      console.log(`[AI Augmentation] Full response text: ${text}`);
+      return {};
+    }
   } catch (error) {
-    console.error(`[AI Augmentation] Error for ${issue.ruleId}:`, error);
+    console.error(`[AI Augmentation] ❌ CRITICAL ERROR for ${issue.ruleId}:`, {
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+      ruleId: issue.ruleId,
+    });
     return {};
   }
 }
@@ -325,7 +465,7 @@ async function validateFileContentWithAI(
   suggestions: string[];
 }> {
   try {
-    const model = genAI.getGenerativeModel({ model: 'gemini-3.0-flash' });
+
     
     const validationPrompts = {
       privacy_policy: `Analyze this privacy policy for ${platform} compliance. Check for:
@@ -370,22 +510,62 @@ Respond ONLY with valid JSON:
   "suggestions": ["specific improvements needed"]
 }`;
 
-    const result = await model.generateContent(prompt);
-    const text = result.response.text();
+    console.log(`[AI Content Validation] Sending prompt for ${filePath} (type: ${expectedType})...`);
+    const result = await genAI.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: prompt,
+    });
+    const text = result.text || '';
     
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (jsonMatch) {
-      const validation = JSON.parse(jsonMatch[0]);
-      return {
-        isValid: validation.isValid || false,
-        issues: validation.issues || [],
-        suggestions: validation.suggestions || [],
-      };
+    console.log(`[AI Content Validation] Received response for ${filePath}. Length: ${text.length}`);
+    console.log(`[AI Content Validation] Raw response preview for ${filePath}: ${text.substring(0, 100)}...`);
+
+    // Clean the response to get just the JSON
+    let cleanText = text.trim();
+    if (cleanText.startsWith('```json')) {
+      cleanText = cleanText.replace(/^```json\s*/, '').replace(/\s*```$/, '');
+    } else if (cleanText.startsWith('```')) {
+      cleanText = cleanText.replace(/^```\s*/, '').replace(/\s*```$/, '');
     }
+
+    const firstOpen = cleanText.indexOf('{');
+    const lastClose = cleanText.lastIndexOf('}');
     
-    return { isValid: false, issues: ['Failed to parse AI response'], suggestions: [] };
+    let jsonString = '';
+    if (firstOpen !== -1 && lastClose !== -1 && lastClose > firstOpen) {
+      jsonString = cleanText.substring(firstOpen, lastClose + 1);
+    } else {
+      jsonString = cleanText;
+    }
+
+    if (jsonString) {
+      console.log(`[AI Content Validation] Attempting to parse JSON for ${filePath}...`);
+      try {
+        const validation = JSON.parse(jsonString);
+        console.log(`[AI Content Validation] Successfully parsed JSON for ${filePath}. IsValid: ${validation.isValid}`);
+        return {
+          isValid: validation.isValid || false,
+          issues: validation.issues || [],
+          suggestions: validation.suggestions || [],
+        };
+      } catch (parseError) {
+        console.error(`[AI Content Validation] Failed to parse JSON for ${filePath}:`, parseError);
+        console.log(`[AI Content Validation] Failed JSON string for ${filePath}: ${jsonString}`);
+        return { isValid: false, issues: ['Failed to parse AI response'], suggestions: [] };
+      }
+    } else {
+      console.warn(`[AI Content Validation] No JSON found in response for ${filePath}. Raw text preview: ${text.substring(0, 100)}...`);
+      return { isValid: false, issues: ['No JSON found in AI response'], suggestions: [] };
+    }
   } catch (error) {
-    console.error(`[Content Validation] Error validating ${filePath}:`, error);
+    console.error(`[Content Validation] Error validating ${filePath}:`, {
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+      filePath,
+      expectedType,
+      contentLength: content?.length || 0,
+      timestamp: new Date().toISOString(),
+    });
     return { isValid: false, issues: ['AI validation failed'], suggestions: [] };
   }
 }
@@ -481,7 +661,13 @@ async function runContentValidation(
           });
         }
       } catch (error) {
-        console.error(`[Content Validation] Error validating ${validation.file}:`, error);
+        console.error(`[Content Validation] Error validating ${validation.file}:`, {
+          error: error instanceof Error ? error.message : String(error),
+          stack: error instanceof Error ? error.stack : undefined,
+          file: validation.file,
+          expectedType: validation.type,
+          timestamp: new Date().toISOString(),
+        });
       }
     }
   }
@@ -496,15 +682,27 @@ export async function analyzeAndPersistCompliance(
   owner: string,
   repo: string,
   checkType: 'APPLE_APP_STORE' | 'GOOGLE_PLAY_STORE' | 'CHROME_WEB_STORE' | 'MOBILE_PLATFORMS',
-  branchName: string = 'main'
+  branchName: string = 'main',
+  accessToken?: string
 ): Promise<string> {
   const checkRunId = await createCheckRun(owner, repo, checkType, branchName);
   
   try {
-    const result = await analyzeRepositoryCompliance(owner, repo, checkType, branchName);
+    const result = await analyzeRepositoryCompliance(owner, repo, checkType, branchName, accessToken);
     await updateCheckRunWithResults(checkRunId, result);
     return checkRunId;
   } catch (error) {
+    console.error('[Hybrid Engine] Analysis failed:', {
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+      checkRunId,
+      owner,
+      repo,
+      checkType,
+      branchName,
+      timestamp: new Date().toISOString(),
+    });
+    
     await prisma.checkRun.update({
       where: { id: checkRunId },
       data: {

@@ -46,6 +46,16 @@ export async function GET(
     // For now, we'll allow access to any check run
     // In a production app, you'd want to verify the user has access to this repository
 
+    // Debug logging
+    const issues = (checkRun.issues as any[]) || [];
+    if (issues.length > 0) {
+      console.log('[API Debug] First issue keys:', Object.keys(issues[0]));
+      console.log('[API Debug] First issue AI data:', {
+        hasLoc: !!issues[0].aiPinpointLocation,
+        hasFix: !!issues[0].aiSuggestedFix
+      });
+    }
+
     return NextResponse.json({
       id: checkRun.id,
       repositoryId: checkRun.repositoryId,
@@ -54,7 +64,7 @@ export async function GET(
       branchName: checkRun.branchName,
       status: checkRun.status,
       checkType: checkRun.checkType,
-      issues: checkRun.issues || [],
+      issues: issues,
       errorType: checkRun.errorType,
       errorMessage: checkRun.errorMessage,
       errorDetails: checkRun.errorDetails,

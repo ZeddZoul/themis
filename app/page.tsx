@@ -1,57 +1,22 @@
-import Link from 'next/link';
-import { Button } from '@/components/ui/button';
-import { colors } from '@/lib/design-system';
+import { Hero } from '@/components/home/Hero';
+import { Features } from '@/components/home/Features';
+import { HowItWorks } from '@/components/home/HowItWorks';
+import { CTA } from '@/components/home/CTA';
 
 export default function Home() {
   return (
-    <main className="min-h-screen" style={{ backgroundColor: colors.background.subtle }}>
-      <div className="container mx-auto px-4 py-16">
-        <div className="text-center mb-16">
-          <h1 className="text-5xl font-bold mb-4" style={{ color: colors.text.primary }}>
-            Themis Checker
-          </h1>
-          <p className="text-xl mb-8" style={{ color: colors.text.secondary }}>
-            Automated compliance checking for Apple App Store and Google Play Store
-          </p>
-          <Link href="/login">
-            <Button variant="primary" className="px-8 py-3 text-lg">
-              Get Started
-            </Button>
-          </Link>
+    <main className="min-h-screen bg-white">
+      <Hero />
+      <Features />
+      <HowItWorks />
+      <CTA />
+      
+      {/* Footer */}
+      <footer className="bg-gray-50 py-12 border-t border-gray-100">
+        <div className="container mx-auto px-4 text-center text-gray-500">
+          <p>&copy; {new Date().getFullYear()} Themis. All rights reserved.</p>
         </div>
-
-        <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
-          <div className="p-6 rounded-lg shadow-md" style={{ backgroundColor: colors.background.main }}>
-            <div className="text-3xl mb-4">🔍</div>
-            <h3 className="text-xl font-semibold mb-2" style={{ color: colors.text.primary }}>
-              Automated Checks
-            </h3>
-            <p style={{ color: colors.text.secondary }}>
-              Scan your repositories for compliance issues with Apple and Google store policies
-            </p>
-          </div>
-
-          <div className="p-6 rounded-lg shadow-md" style={{ backgroundColor: colors.background.main }}>
-            <div className="text-3xl mb-4">📋</div>
-            <h3 className="text-xl font-semibold mb-2" style={{ color: colors.text.primary }}>
-              Detailed Reports
-            </h3>
-            <p style={{ color: colors.text.secondary }}>
-              Get comprehensive reports with actionable insights and solutions
-            </p>
-          </div>
-
-          <div className="p-6 rounded-lg shadow-md" style={{ backgroundColor: colors.background.main }}>
-            <div className="text-3xl mb-4">🔒</div>
-            <h3 className="text-xl font-semibold mb-2" style={{ color: colors.text.primary }}>
-              Secure & Private
-            </h3>
-            <p style={{ color: colors.text.secondary }}>
-              Read-only access, no data storage, your code stays private
-            </p>
-          </div>
-        </div>
-      </div>
+      </footer>
     </main>
   );
 }

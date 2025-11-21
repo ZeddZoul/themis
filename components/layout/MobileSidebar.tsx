@@ -131,7 +131,7 @@ export function MobileSidebar({ isOpen, onClose }: MobileSidebarProps) {
           }}
         >
           <Image 
-            alt='Themis Checker logo' 
+            alt='Themis logo' 
             src="/logo.png" 
             width={120} 
             height={69}

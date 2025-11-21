@@ -2,7 +2,7 @@ import React from 'react';
 import { colors } from '@/lib/design-system';
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: 'primary' | 'secondary' | 'danger';
+  variant?: 'primary' | 'secondary' | 'danger' | 'outline';
   children: React.ReactNode;
 }
 
@@ -13,6 +13,7 @@ export function Button({ variant = 'primary', children, className = '', ...props
     primary: 'text-white',
     secondary: '',
     danger: 'bg-red-600 text-white hover:bg-red-700',
+    outline: '',
   };
 
   const getStyles = () => {
@@ -33,6 +34,14 @@ export function Button({ variant = 'primary', children, className = '', ...props
     } else if (variant === 'danger') {
       return {
         '--tw-ring-color': '#EF4444',
+      } as React.CSSProperties;
+    } else if (variant === 'outline') {
+      return {
+        backgroundColor: 'transparent',
+        border: `1px solid ${colors.primary.accent}`,
+        color: colors.primary.accent,
+        '--hover-bg': colors.primary.accent + '10',
+        '--tw-ring-color': colors.primary.accent,
       } as React.CSSProperties;
     }
     return {};

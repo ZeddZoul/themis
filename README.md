@@ -1,4 +1,4 @@
-# Themis Checker
+# Themis
 
 Automated compliance checking for mobile app repositories. Themis Checker analyzes your repositories for compliance with Apple App Store and Google Play Store requirements, including privacy policies, terms of service, and other mandatory documentation.
 

@@ -7,6 +7,7 @@ export interface SessionData {
     githubId: string;
     email: string;
     name: string;
+    accessToken?: string;
   };
   isLoggedIn: boolean;
 }

@@ -1,7 +1,7 @@
 /**
  * Design System Constants
  * 
- * Centralized color palette, spacing, and breakpoints for Themis Checker.
+ * Centralized color palette, spacing, and breakpoints for Themis.
  * These constants ensure visual consistency across the application.
  */
 

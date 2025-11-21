@@ -5,39 +5,73 @@ import { analyzeAndPersistCompliance } from '@/lib/compliance-hybrid';
 import { prisma } from '@/lib/prisma';
 
 interface CheckRequest {
-  repoId: number;
+  repoId?: number;
+  owner?: string;
+  repo?: string;
   checkType: 'APPLE_APP_STORE' | 'GOOGLE_PLAY_STORE' | 'CHROME_WEB_STORE' | 'MOBILE_PLATFORMS';
   branchName?: string;
 }
 
 export async function POST(request: NextRequest) {
-  const session = await getSession();
+  const apiKey = request.headers.get('x-api-key');
+  let isAuthenticated = false;
 
-  if (!session.isLoggedIn) {
+  // 1. Check API Key
+  if (apiKey) {
+    const user = await prisma.user.findUnique({
+      where: { apiKey },
+    });
+    if (user) {
+      isAuthenticated = true;
+    }
+  }
+
+  // 2. Check Session if no API Key
+  if (!isAuthenticated) {
+    const session = await getSession();
+    if (session.isLoggedIn) {
+      isAuthenticated = true;
+    }
+  }
+
+  if (!isAuthenticated) {
     return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
   }
 
   try {
     const body: CheckRequest = await request.json();
     const { repoId, checkType, branchName } = body;
+    let { owner, repo } = body;
 
-    // Get repository details
-    const octokit = getGithubClient();
-    const { data: repo } = await octokit.request('GET /repositories/{id}', {
-      id: repoId,
-    });
+    // If repoId is provided, fetch details from GitHub
+    if (repoId) {
+      const octokit = getGithubClient();
+      const { data: repoData } = await octokit.request('GET /repositories/{id}', {
+        id: repoId,
+      });
+      owner = repoData.owner.login;
+      repo = repoData.name;
+    }
 
-    // Use provided branch or default branch
-    const branch = branchName || repo.default_branch || 'main';
+    if (!owner || !repo) {
+      return NextResponse.json({ error: 'Missing repository information' }, { status: 400 });
+    }
 
-    console.log(`Analyzing repository: ${repo.full_name}@${branch} for ${checkType} compliance`);
+    // Use provided branch or default (we can't easily get default without repoId lookup, so default to main if not provided)
+    const branch = branchName || 'main';
+
+    console.log(`Analyzing repository: ${owner}/${repo}@${branch} for ${checkType} compliance`);
 
     // Run AI-powered compliance check and persist to database
+    const session = await getSession();
+    const accessToken = session.user?.accessToken;
+
     const checkRunId = await analyzeAndPersistCompliance(
-      repo.owner.login,
-      repo.name,
+      owner,
+      repo,
       checkType,
-      branch
+      branch,
+      accessToken
     );
 
     console.log(`[Checks API] Created checkRunId: ${checkRunId}, verifying it exists...`);
@@ -57,7 +91,7 @@ export async function POST(request: NextRequest) {
     
     const results = {
       status: checkRun.status.toLowerCase(),
-      repository: repo.full_name,
+      repository: `${owner}/${repo}`,
       checkType,
       checkRunId,
       summary: {
