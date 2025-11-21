@@ -111,22 +111,14 @@ export function SimpleLoading({
         if (response.ok) {
           const data = await response.json();
           
-          // Update progress message
-          const getProgressMessage = (step: string, status: string) => {
-            if (status === 'COMPLETED') return "Analysis complete!";
-            if (status === 'FAILED') return "Analysis failed. Please try again.";
-            
-            if (step.includes('Starting analysis')) return "Themis is starting analysis...";
-            if (step.includes('Fetching') || step.includes('files')) return "Themis is scanning repository files...";
-            if (step.includes('deterministic rules')) return "Themis is checking compliance rules...";
-            if (step.includes('violations')) return "Themis found compliance issues...";
-            if (step.includes('content validation')) return "Themis is validating content...";
-            if (step.includes('augmentation') || step.includes('analyzing')) return "Themis is analyzing issues...";
-            
-            return step || "Processing...";
-          };
-          
-          setCurrentMessage(getProgressMessage(data.currentStep || '', data.status));
+          // Simple message - just wait until complete
+          if (data.status === 'COMPLETED') {
+            setCurrentMessage("Analysis complete!");
+          } else if (data.status === 'FAILED') {
+            setCurrentMessage("Analysis failed. Please try again.");
+          } else {
+            setCurrentMessage("Themis is generating compliance report...");
+          }
           
           if (data.status === 'COMPLETED' || data.status === 'FAILED') {
             setIsComplete(true);
@@ -149,18 +141,20 @@ export function SimpleLoading({
     checkProgress();
   }, [enableRealTimeSync, checkRunId, onComplete]);
 
-  // Fallback message cycling when real-time sync is not available
+  // Realistic message cycling that matches backend process
   useEffect(() => {
     if (enableRealTimeSync && checkRunId) return; // Skip if real-time sync is enabled
     
     const messages = [
       "Starting compliance analysis...",
-      "Themis is scanning repository files...",
-      "Themis is checking compliance rules...",
-      "Themis is analyzing code patterns...",
-      "Themis is validating security policies...",
-      "Themis is generating compliance report...",
-      "Analysis complete!"
+      "Fetching repository files...",
+      "Running deterministic rules engine...",
+      "Checking compliance violations...",
+      "Running Themis content validation...",
+      "Starting Themis augmentation for issues...",
+      "Themis analyzing violations and suggesting fixes..."
+      // Note: "Finalizing analysis results..." and "Analysis complete!" 
+      // will be shown only when API actually completes
     ];
     
     let messageIndex = 0;
@@ -175,29 +169,24 @@ export function SimpleLoading({
       intervals.push(timer);
     };
     
-    // Cycle through messages every 3 seconds
+    // Show messages at realistic intervals, but stop before completion messages
+    const timings = [0, 8000, 20000, 35000, 50000, 65000, 80000]; // milliseconds
+    
     messages.forEach((message, index) => {
-      if (index === messages.length - 1) {
-        // Last message (completion) - show after longer delay
-        updateMessage(message, index * 3000 + 2000);
-        const completeTimer = setTimeout(() => {
-          setIsComplete(true);
-          setTimeout(() => onComplete?.(), 1500);
-        }, index * 3000 + 3500);
-        intervals.push(completeTimer);
-      } else {
-        updateMessage(message, index * 3000);
-      }
+      updateMessage(message, timings[index]);
     });
+    
+    // After the last timed message, keep showing the last analysis message
+    // until the API actually completes
     
     return () => {
       intervals.forEach(timer => clearTimeout(timer));
     };
-  }, [enableRealTimeSync, checkRunId, onComplete, isComplete]);
+  }, [enableRealTimeSync, checkRunId, isComplete]);
 
   return (
     <div 
-      className="absolute inset-0 flex items-center justify-center z-50 backdrop-blur-sm"
+      className="fixed inset-0 flex items-center justify-center z-50 backdrop-blur-sm"
       style={{ 
         backgroundColor: colors.background.main + 'F0',
         backgroundImage: `radial-gradient(circle at 25% 25%, ${colors.primary.accent}08 0%, transparent 50%), radial-gradient(circle at 75% 75%, #6B2C9108 0%, transparent 50%)`
@@ -207,7 +196,7 @@ export function SimpleLoading({
           {/* Lottie Animation */}
           <div className="flex justify-center mb-6">
             {animationData && (
-              <div className="w-32 h-32">
+              <div className="w-32 h-32 relative">
                 <Lottie
                   animationData={{
                     ...animationData,
@@ -223,6 +212,15 @@ export function SimpleLoading({
                     preserveAspectRatio: 'xMidYMid slice',
                     progressiveLoad: false,
                     hideOnTransparent: true,
+                  }}
+                />
+                
+                {/* Subtle rotating ring around animation */}
+                <div 
+                  className="absolute inset-0 rounded-full border-2 border-dashed animate-spin opacity-20"
+                  style={{ 
+                    borderColor: colors.primary.accent,
+                    animationDuration: '8s'
                   }}
                 />
               </div>

@@ -30,6 +30,8 @@ export const queryKeys = {
   },
   checks: {
     all: ['checks'] as const,
+    running: ['checks', 'running'] as const,
+    recentlyCompleted: ['checks', 'recently-completed'] as const,
     history: (filters?: CheckFilters) => ['checks', 'history', filters] as const,
     detail: (id: string) => ['checks', 'detail', id] as const,
   },

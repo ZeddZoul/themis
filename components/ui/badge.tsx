@@ -2,7 +2,7 @@ import React from 'react';
 import { colors } from '@/lib/design-system';
 import { DynamicIcon, IconName } from '@/lib/icons';
 
-type BadgeVariant = 'success' | 'warning' | 'error' | 'info';
+type BadgeVariant = 'success' | 'warning' | 'error' | 'info' | 'processing';
 type BadgeSize = 'sm' | 'md' | 'lg';
 
 interface BadgeProps {
@@ -47,6 +47,11 @@ export const Badge = React.memo<BadgeProps>(function Badge({ variant, size = 'md
       color: colors.status.info,
       border: `1px solid ${colors.status.info}40`,
     },
+    processing: {
+      backgroundColor: colors.primary.accent + '15',
+      color: colors.primary.accent,
+      border: `1px solid ${colors.primary.accent}40`,
+    },
   };
 
   const iconMap: Record<BadgeVariant, IconName> = {
@@ -54,6 +59,7 @@ export const Badge = React.memo<BadgeProps>(function Badge({ variant, size = 'md
     warning: 'warning',
     error: 'error',
     info: 'info',
+    processing: 'loading',
   };
 
   return (

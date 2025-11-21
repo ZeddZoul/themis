@@ -8,6 +8,7 @@ import { colors } from '@/lib/design-system';
 import { useToast } from '@/lib/hooks/useToast';
 import { useUser } from '@/lib/hooks/useUser';
 import { useDashboardStats } from '@/lib/hooks/useDashboardStats';
+import { useCompletionNotifications } from '@/lib/hooks/useCompletionNotifications';
 import { DynamicIcon } from '@/lib/icons';
 import { MdDashboard, MdWarning } from 'react-icons/md';
 import { FaCodeBranch } from 'react-icons/fa';
@@ -47,6 +48,9 @@ export function DashboardClient({ initialStats, initialUser }: DashboardClientPr
   const { data: stats, isLoading: statsLoading, error: statsError } = useDashboardStats({
     initialData: initialStats,
   });
+
+  // Enable completion notifications
+  useCompletionNotifications();
 
   /**
    * Effect: Redirect to login if user authentication fails

@@ -79,15 +79,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.redirect(new URL('/install-app', request.url));
     }
   } catch (error) {
-    console.error('=== AUTH ERROR DETAILS ===');
-    console.error('Error:', error);
-    console.error('Error message:', error instanceof Error ? error.message : 'Unknown error');
-    console.error('Error stack:', error instanceof Error ? error.stack : 'No stack trace');
-    console.error('Environment check:');
-    console.error('- GITHUB_CLIENT_ID:', process.env.GITHUB_CLIENT_ID ? 'Set' : 'MISSING');
-    console.error('- GITHUB_CLIENT_SECRET:', process.env.GITHUB_CLIENT_SECRET ? 'Set' : 'MISSING');
-    console.error('- SESSION_SECRET:', process.env.SESSION_SECRET ? 'Set' : 'MISSING');
-    console.error('=========================');
+    console.error('GitHub auth failed:', error instanceof Error ? error.message : 'Unknown error');
     return NextResponse.redirect(new URL('/login?error=auth_failed', request.url));
   }
 }

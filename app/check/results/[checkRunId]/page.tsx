@@ -89,10 +89,10 @@ export default function CheckResultsPage() {
             errorDetails: data.errorDetails,
           });
         } else {
-          console.error('Failed to fetch check results:', response.status);
+
         }
       } catch (error) {
-        console.error('Failed to fetch check results:', error);
+
       }
       
       setLoading(false);
@@ -197,7 +197,7 @@ export default function CheckResultsPage() {
         message: `${format.toUpperCase()} Report exported successfully!`,
       });
     } catch (error) {
-      console.error('Export failed:', error);
+
       showToast({
         type: 'error',
         message: error instanceof Error ? error.message : 'Failed to export report',

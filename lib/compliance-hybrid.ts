@@ -9,6 +9,7 @@ import { GoogleGenAI } from '@google/genai';
 import { getFileContent } from './github';
 import { prisma } from './prisma';
 import { evaluateRules, type Platform as RulePlatform, type ComplianceRule } from './compliance-rules';
+import { getGeminiConfig } from './gemini-config';
 
 const genAI = new GoogleGenAI({
   apiKey: process.env.GEMINI_API_KEY || '',
@@ -56,6 +57,8 @@ function logDebug(message: string) {
   fs.appendFileSync(logFile, `[${timestamp}] ${message}\n`);
 }
 
+
+
 export async function analyzeRepositoryCompliance(
   owner: string,
   repo: string,
@@ -95,34 +98,14 @@ export async function analyzeRepositoryCompliance(
     // Merge content validation issues with deterministic issues
     const allIssues = [...issues, ...contentValidationIssues];
     
-    // Step 5: AI Augmentation (async, non-blocking)
-    console.log(`[Hybrid Engine] Starting AI augmentation for ${allIssues.length} issues...`);
+    // Step 5: AI Augmentation (batch processing to avoid rate limits)
+    console.log(`[Hybrid Engine] Starting AI batch augmentation for ${allIssues.length} issues...`);
     console.log(`[Hybrid Engine] Available files for augmentation:`, Object.keys(files).length);
-    console.log(`[Hybrid Engine] Available file names:`, Object.keys(files));
+    console.log(`[Hybrid Engine] Processing in batches of 5 to avoid rate limits...`);
     
-    const augmentedIssues = await Promise.all(
-      allIssues.map(async (issue, index) => {
-        try {
-          console.log(`[Hybrid Engine] Processing issue ${index + 1}/${allIssues.length}: ${issue.ruleId}`);
-          const augmentation = await augmentIssueWithAI(issue, files, checkType);
-          const hasAugmentation = Object.keys(augmentation).length > 0;
-          console.log(`[Hybrid Engine] Issue ${issue.ruleId} augmentation result: ${hasAugmentation ? 'SUCCESS' : 'NO_AUGMENTATION'}`);
-          return { ...issue, ...augmentation };
-        } catch (error) {
-          console.error(`[Hybrid Engine] AI augmentation failed for ${issue.ruleId}:`, {
-            error: error instanceof Error ? error.message : String(error),
-            stack: error instanceof Error ? error.stack : undefined,
-            ruleId: issue.ruleId,
-            severity: issue.severity,
-            category: issue.category,
-            timestamp: new Date().toISOString(),
-          });
-          return issue; // Return deterministic issue without augmentation
-        }
-      })
-    );
+    const augmentedIssues = await augmentIssuesInBatches(allIssues, files, checkType);
     
-    console.log(`[Hybrid Engine] Analysis complete: ${augmentedIssues.length} issues (${violations.length} deterministic + AI enhancements)`);
+    console.log(`[Hybrid Engine] Analysis complete: ${augmentedIssues.length} issues (${issues.length} deterministic + AI enhancements)`);
     
     return {
       issues: augmentedIssues,
@@ -264,6 +247,191 @@ interface AIAugmentation {
   };
 }
 
+/**
+ * Helper: Split array into chunks
+ */
+function chunkArray<T>(array: T[], size: number): T[][] {
+  const chunks: T[][] = [];
+  for (let i = 0; i < array.length; i += size) {
+    chunks.push(array.slice(i, i + size));
+  }
+  return chunks;
+}
+
+/**
+ * Helper: Delay execution
+ */
+function sleep(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+/**
+ * Process issues in batches to avoid rate limits
+ */
+async function augmentIssuesInBatches(
+  issues: ComplianceIssue[],
+  files: { [key: string]: string | null },
+  checkType: string
+): Promise<ComplianceIssue[]> {
+  const BATCH_SIZE = 5;
+  const DELAY_BETWEEN_BATCHES_MS = 1000; // 1 second delay between batches
+  
+  const batches = chunkArray(issues, BATCH_SIZE);
+  const allAugmentedIssues: ComplianceIssue[] = [];
+  
+  console.log(`[Batch Augmentation] Processing ${issues.length} issues in ${batches.length} batches of ${BATCH_SIZE}`);
+  
+  for (let batchIndex = 0; batchIndex < batches.length; batchIndex++) {
+    const batch = batches[batchIndex];
+    console.log(`[Batch Augmentation] Processing batch ${batchIndex + 1}/${batches.length} (${batch.length} issues)`);
+    
+    try {
+      // Process entire batch with single AI call
+      const augmentedBatch = await augmentBatchWithAI(batch, files, checkType);
+      allAugmentedIssues.push(...augmentedBatch);
+      
+      console.log(`[Batch Augmentation] ✅ Batch ${batchIndex + 1} complete`);
+      
+      // Add delay between batches (except for last batch)
+      if (batchIndex < batches.length - 1) {
+        console.log(`[Batch Augmentation] Waiting ${DELAY_BETWEEN_BATCHES_MS}ms before next batch...`);
+        await sleep(DELAY_BETWEEN_BATCHES_MS);
+      }
+    } catch (error) {
+      console.error(`[Batch Augmentation] ❌ Batch ${batchIndex + 1} failed:`, error);
+      // Fallback: process individually if batch fails
+      console.log(`[Batch Augmentation] Falling back to individual processing for batch ${batchIndex + 1}`);
+      for (const issue of batch) {
+        try {
+          const augmentation = await augmentIssueWithAI(issue, files, checkType);
+          allAugmentedIssues.push({ ...issue, ...augmentation });
+        } catch (individualError) {
+          console.error(`[Batch Augmentation] Failed to augment ${issue.ruleId}:`, individualError);
+          allAugmentedIssues.push(issue); // Return without augmentation
+        }
+      }
+    }
+  }
+  
+  return allAugmentedIssues;
+}
+
+/**
+ * Augment multiple issues with a single AI call
+ */
+async function augmentBatchWithAI(
+  issues: ComplianceIssue[],
+  files: { [key: string]: string | null },
+  checkType: string
+): Promise<ComplianceIssue[]> {
+  try {
+    // Build batch prompt
+    const issuePrompts = issues.map((issue, index) => {
+      const relevantFile = issue.file || 'README.md';
+      const fileContent = files[relevantFile];
+      
+      let fileContext = '';
+      if (fileContent) {
+        const lines = fileContent.split('\n');
+        const numberedContent = lines
+          .map((line, idx) => `${idx + 1}: ${line}`)
+          .slice(0, 50) // Limit to 50 lines per issue for context window
+          .join('\n');
+        fileContext = `File: ${relevantFile}\nContent:\n${numberedContent}`;
+      } else {
+        fileContext = `File: ${relevantFile} (MISSING - needs to be created)`;
+      }
+      
+      return `
+Issue ${index + 1}:
+RuleID: ${issue.ruleId}
+Category: ${issue.category}
+Description: ${issue.description}
+${fileContext}
+`;
+    }).join('\n---\n');
+
+    const prompt = `You are a compliance expert for ${checkType} app store policies. Analyze the following ${issues.length} compliance violations and provide augmentation for each.
+
+${issuePrompts}
+
+For each issue, provide:
+1. Line numbers where the violation occurs (empty array if file is missing)
+2. Explanation of the violation
+3. Code snippet to fix it (or create the missing file)
+
+Respond ONLY with a valid JSON array. Each element must match this structure:
+{
+  "ruleId": "issue rule ID",
+  "lineNumbers": [array of line numbers],
+  "explanation": "brief explanation",
+  "codeSnippet": "exact code to add/modify"
+}
+
+Return exactly ${issues.length} objects in the array, one for each issue in order.`;
+
+    console.log(`[Batch AI] Sending batch request for ${issues.length} issues to Gemini 2.5 Flash...`);
+    
+    const result = await genAI.models.generateContent({
+      ...getGeminiConfig('batch'),
+      contents: prompt,
+    });
+    
+    const text = result.text || '';
+    console.log(`[Batch AI] ✅ Received response. Length: ${text.length}`);
+    
+    // Parse JSON array response
+    let cleanText = text.trim();
+    if (cleanText.startsWith('```json')) {
+      cleanText = cleanText.replace(/^```json\s*/, '').replace(/\s*```$/, '');
+    } else if (cleanText.startsWith('```')) {
+      cleanText = cleanText.replace(/^```\s*/, '').replace(/\s*```$/, '');
+    }
+    
+    // Extract JSON array
+    const arrayStart = cleanText.indexOf('[');
+    const arrayEnd = cleanText.lastIndexOf(']');
+    
+    if (arrayStart === -1 || arrayEnd === -1) {
+      throw new Error('No JSON array found in response');
+    }
+    
+    const jsonString = cleanText.substring(arrayStart, arrayEnd + 1);
+    const augmentations = JSON.parse(jsonString);
+    
+    if (!Array.isArray(augmentations)) {
+      throw new Error('Response is not an array');
+    }
+    
+    console.log(`[Batch AI] Successfully parsed ${augmentations.length} augmentations`);
+    
+    // Map augmentations back to issues
+    return issues.map((issue, index) => {
+      const augmentation = augmentations.find(a => a.ruleId === issue.ruleId) || augmentations[index];
+      
+      if (!augmentation) {
+        console.warn(`[Batch AI] No augmentation found for ${issue.ruleId}`);
+        return issue;
+      }
+      
+      return {
+        ...issue,
+        aiPinpointLocation: {
+          filePath: issue.file || 'README.md',
+          lineNumbers: augmentation.lineNumbers || [],
+        },
+        aiSuggestedFix: {
+          explanation: augmentation.explanation || '',
+          codeSnippet: augmentation.codeSnippet || '',
+        },
+      };
+    });
+  } catch (error) {
+    console.error('[Batch AI] Batch augmentation failed:', error);
+    throw error; // Re-throw to trigger fallback
+  }
+}
+
 async function augmentIssueWithAI(
   issue: ComplianceIssue,
   files: { [key: string]: string | null },
@@ -366,12 +534,12 @@ The JSON must follow this structure:
 }`;
     }
 
-    console.log(`[AI Augmentation] Sending prompt to Gemini 2.5 Pro...`);
+    console.log(`[AI Augmentation] Sending prompt to Gemini 2.5 Flash...`);
     
     let result;
     try {
       result = await genAI.models.generateContent({
-        model: 'gemini-2.5-flash',
+        ...getGeminiConfig('individual'),
         contents: prompt,
       });
     } catch (apiError) {
@@ -512,7 +680,7 @@ Respond ONLY with valid JSON:
 
     console.log(`[AI Content Validation] Sending prompt for ${filePath} (type: ${expectedType})...`);
     const result = await genAI.models.generateContent({
-      model: 'gemini-2.5-flash',
+      ...getGeminiConfig('validation'),
       contents: prompt,
     });
     const text = result.text || '';

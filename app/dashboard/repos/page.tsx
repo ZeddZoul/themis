@@ -9,9 +9,11 @@ import { Pagination } from '@/components/ui/pagination';
 import { SkeletonLoader } from '@/components/ui/loading-spinner';
 import { SkeletonCard } from '@/components/ui/SkeletonCard';
 import { SimpleLoading } from '@/components/ui/simple-loading';
+import { RunningChecks } from '@/components/dashboard/RunningChecks';
 import { colors } from '@/lib/design-system';
 import { useToast } from '@/lib/hooks/useToast';
 import { useRepositories, Repository } from '@/lib/hooks/useRepositories';
+import { useCompletionNotifications } from '@/lib/hooks/useCompletionNotifications';
 import { queryKeys } from '@/lib/query-keys';
 import { DynamicIcon } from '@/lib/icons';
 import { FaCodeBranch } from 'react-icons/fa';
@@ -38,6 +40,9 @@ export default function RepositoriesPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const { showToast } = useToast();
+  
+  // Enable completion notifications
+  useCompletionNotifications();
   
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
@@ -119,13 +124,21 @@ export default function RepositoriesPage() {
 
       const data = await response.json();
       
-      // Set the checkRunId to enable real-time progress tracking
-      setCheckRunId(data.checkRunId);
+      // Set navigation state to keep loading screen visible during navigation
+      setIsNavigating(true);
+      
+      // Analysis is complete! Navigate directly to results
+      router.push(`/check/results/${data.checkRunId}`);
       
       // Invalidate queries to refresh data
       queryClient.invalidateQueries({ queryKey: queryKeys.repositories.all });
       queryClient.invalidateQueries({ queryKey: queryKeys.stats.dashboard });
       queryClient.invalidateQueries({ queryKey: queryKeys.checks.all });
+      
+      // Keep loading screen visible for a moment to ensure smooth navigation
+      setTimeout(() => {
+        setIsNavigating(false);
+      }, 1000);
       
     } catch (error) {
       console.error('Check failed:', error);
@@ -134,9 +147,10 @@ export default function RepositoriesPage() {
         message: error instanceof Error ? error.message : 'Failed to start compliance check',
       });
     } finally {
-      // Don't clear loading state here - let the EnhancedLoading component handle it
-      // setIsCheckLoading(false);
-      // setLoadingRepo('');
+      // Clear loading state (but keep navigation state if set)
+      setIsCheckLoading(false);
+      setLoadingRepo('');
+      setCheckRunId('');
     }
   }, [showToast, queryClient]);
 
@@ -178,6 +192,9 @@ export default function RepositoriesPage() {
             placeholder="Search repositories by name..."
           />
         </div>
+
+        {/* Running Checks Section */}
+        <RunningChecks />
 
         {/* Background revalidation indicator */}
         {isFetching && !isLoading && (
@@ -301,11 +318,9 @@ export default function RepositoriesPage() {
       {/* Loading Overlay */}
       {(isCheckLoading || isNavigating) && (
         <SimpleLoading
-          checkRunId={checkRunId}
-          enableRealTimeSync={true}
-          onComplete={handleLoadingComplete}
-          title="Running Compliance Check"
-          subtitle={`Analyzing ${loadingRepo}`}
+          enableRealTimeSync={false}
+          title="Themis is generating compliance report"
+          subtitle="Don't worry, you can leave or close this window. You'll be notified when the check is complete."
         />
       )}
     </div>

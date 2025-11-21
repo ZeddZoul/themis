@@ -35,10 +35,7 @@ export async function GET(request: Request) {
     const pageSize = parseInt(searchParams.get('pageSize') || '10', 10);
     const search = searchParams.get('search') || '';
 
-    console.log('Fetching repositories...');
-    console.log('GitHub App ID:', process.env.GITHUB_APP_ID);
-    console.log('Installation ID:', process.env.GITHUB_APP_INSTALLATION_ID);
-    console.log('Pagination:', { page, pageSize, search });
+
     
     const octokit = getGithubClient();
     
@@ -63,11 +60,7 @@ export async function GET(request: Request) {
       if (currentPage > 10) break;
     }
     
-    console.log('Found repositories:', repositories.length);
-    
-    if (repositories.length > 0) {
-      console.log('Repository names:', repositories.map((r: any) => r.full_name));
-    }
+
 
     // Apply search filter
     if (search) {
@@ -174,9 +167,7 @@ export async function GET(request: Request) {
       },
     });
   } catch (error: any) {
-    console.error('Error fetching repositories:', error.message);
-    console.error('Error status:', error.status);
-    console.error('Error details:', error.response?.data || error);
+    console.error('Error fetching repositories:', error.message || 'Unknown error');
     
     // Return empty array instead of error so UI doesn't break
     return NextResponse.json({ 

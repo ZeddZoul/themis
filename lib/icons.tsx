@@ -139,7 +139,6 @@ export const DynamicIcon: React.FC<DynamicIconProps> = ({
   const IconComponent = typeof icon === 'string' ? iconMap[icon] : icon;
   
   if (!IconComponent) {
-    console.warn(`Icon "${icon}" not found in iconMap`);
     return null;
   }
 

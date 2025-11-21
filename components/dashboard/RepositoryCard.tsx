@@ -10,6 +10,7 @@ import { FaCheckCircle, FaExclamationTriangle, FaExclamationCircle, FaClock, FaC
 import { PlatformSelector, Platform } from '@/components/ui/platform-selector';
 import { BranchSelector, Branch } from '@/components/ui/branch-selector';
 import { RunCheckButton } from '@/components/ui/run-check-button';
+import { useRepositoryRunningCheck } from '@/lib/hooks/useRunningChecks';
 
 type RepositoryStatus = 'success' | 'warning' | 'error' | 'none' | 'failed';
 
@@ -89,6 +90,10 @@ export const RepositoryCard = React.memo<RepositoryCardProps>(function Repositor
   const [fetchedBranches, setFetchedBranches] = React.useState<Branch[]>([]);
   const [branchesLoading, setBranchesLoading] = React.useState(false);
   const [branchesLoaded, setBranchesLoaded] = React.useState(false);
+  
+  // Check if this repository has a running check
+  const runningCheck = useRepositoryRunningCheck(fullName);
+  const hasRunningCheck = !!runningCheck;
   
   const config = statusConfig[status];
   const isFailed = status === 'failed';
@@ -198,7 +203,7 @@ export const RepositoryCard = React.memo<RepositoryCardProps>(function Repositor
         {/* Repository Name and Owner */}
         <div className="mb-2">
           <h3 
-            className="text-xl sm:text-2xl font-bold mb-1"
+            className="text-xl sm:text-2xl font-bold"
             style={{ color: colors.text.primary }}
           >
             {name}
@@ -225,7 +230,11 @@ export const RepositoryCard = React.memo<RepositoryCardProps>(function Repositor
       {/* Status Badge and Branch Selector Row */}
       <div className="flex items-center justify-between gap-2 mb-3">
         <div className="flex-shrink-0">
-          {isFailed && errorInfo ? (
+          {hasRunningCheck ? (
+            <Badge variant="processing" size="sm" showIcon>
+              Analysis in progress...
+            </Badge>
+          ) : isFailed && errorInfo ? (
             <InlineError error={errorInfo} />
           ) : (
             <Badge variant={config.variant} size="sm" showIcon>

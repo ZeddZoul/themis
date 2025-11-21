@@ -49,11 +49,7 @@ export async function GET(
     // Debug logging
     const issues = (checkRun.issues as any[]) || [];
     if (issues.length > 0) {
-      console.log('[API Debug] First issue keys:', Object.keys(issues[0]));
-      console.log('[API Debug] First issue AI data:', {
-        hasLoc: !!issues[0].aiPinpointLocation,
-        hasFix: !!issues[0].aiSuggestedFix
-      });
+
     }
 
     return NextResponse.json({

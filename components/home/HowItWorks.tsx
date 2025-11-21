@@ -12,7 +12,7 @@ const steps = [
   {
     number: '02',
     title: 'AI Analysis',
-    description: 'Themis scans your codebase against thousands of store policies using Gemini 3.0 Pro.',
+    description: 'Themis scans your codebase against thousands of store policies using Gemini 2.5 Flash.',
   },
   {
     number: '03',

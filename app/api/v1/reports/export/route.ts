@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/session';
 import { GoogleGenAI } from '@google/genai';
+import { getGeminiConfig } from '@/lib/gemini-config';
 
 const genAI = new GoogleGenAI({
   apiKey: process.env.GEMINI_API_KEY || '',
@@ -46,7 +47,7 @@ export async function POST(request: Request) {
     const body: ExportRequest = await request.json();
     const { repoName, branchName, checkType, summary, issues } = body;
 
-    console.log(`[Report Export] Generating report for ${repoName} with ${issues.length} issues`);
+
 
     // Generate the markdown report using AI
     const markdown = await generateMarkdownReport({
@@ -131,22 +132,15 @@ Make it suitable for technical teams and compliance officers.
 Be concise but comprehensive.`;
 
     const result = await genAI.models.generateContent({
-      model: 'gemini-2.5-flash',
+      ...getGeminiConfig(),
       contents: prompt,
     });
     const markdown = result.text || '';
 
-    console.log(`[Report Export] Generated ${markdown.length} character report`);
+
     return markdown;
   } catch (error) {
-    console.error('[Report Export] AI generation failed:', {
-      error: error instanceof Error ? error.message : String(error),
-      stack: error instanceof Error ? error.stack : undefined,
-      repoName: data.repoName,
-      issueCount: data.issues?.length || 0,
-      promptLength: prompt?.length || 0,
-      timestamp: new Date().toISOString(),
-    });
+    console.error('[Report Export] AI generation failed:', error instanceof Error ? error.message : 'Unknown error');
     throw error;
   }
 }

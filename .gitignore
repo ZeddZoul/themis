@@ -2,3 +2,8 @@ node_modules
 .env.local
 .next
 .kiro
+
+# Debug and log files
+debug-log.txt
+*.log
+logs/

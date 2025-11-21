@@ -48,7 +48,7 @@ export async function getFileContent(
     );
     return Buffer.from(content.content, 'base64').toString('utf-8');
   } catch (error) {
-    console.error(`[GitHub] Error fetching ${path}:`, error);
+    console.error(`[GitHub] Error fetching ${path}:`, error instanceof Error ? error.message : 'Unknown error');
     return null;
   }
 }
@@ -68,7 +68,7 @@ export async function getRepoBranches(
       protected: branch.protected,
     }));
   } catch (error) {
-    console.error('Error fetching branches:', error);
+    console.error('Error fetching branches:', error instanceof Error ? error.message : 'Unknown error');
     return [];
   }
 }
@@ -85,7 +85,7 @@ export async function getDefaultBranch(
     );
     return repository.default_branch || 'main';
   } catch (error) {
-    console.error('Error fetching default branch:', error);
+    console.error('Error fetching default branch:', error instanceof Error ? error.message : 'Unknown error');
     return 'main';
   }
 }

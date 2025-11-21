@@ -222,20 +222,26 @@ export function EnhancedLoading({
 
   return (
     <div 
-      className="fixed inset-0 flex items-center justify-center z-50 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-center justify-center overflow-hidden"
       style={{ 
-        backgroundColor: colors.background.main + 'F0',
-        backgroundImage: `radial-gradient(circle at 25% 25%, ${colors.primary.accent}08 0%, transparent 50%), radial-gradient(circle at 75% 75%, #6B2C9108 0%, transparent 50%)`
+        backgroundColor: colors.background.main,
       }}
     >
-      <div className="max-w-lg w-full mx-4 text-center">
-        {/* Animated container with subtle glow */}
+      {/* Main container - centered content */}
+      <div className="flex flex-col items-center justify-center max-w-md w-full px-4">
+        {/* Title and subtitle */}
+        <div className="text-center mb-8">
+          <h1 className="text-3xl sm:text-4xl font-bold mb-3" style={{ color: colors.text.primary }}>
+            {title}
+          </h1>
+          <p className="text-base sm:text-lg" style={{ color: colors.text.secondary }}>
+            {subtitle}
+          </p>
+        </div>
         <div 
-          className="bg-white rounded-3xl p-8 shadow-2xl border border-opacity-20"
+          className="p-8"
           style={{ 
-            backgroundColor: colors.background.main,
-            borderColor: colors.primary.accent,
-            boxShadow: `0 25px 50px -12px ${colors.primary.accent}20, 0 0 0 1px ${colors.primary.accent}10`
+            backgroundColor: 'transparent',
           }}
         >
           {/* Lottie Animation with enhanced styling */}

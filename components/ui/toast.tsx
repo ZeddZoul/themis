@@ -74,7 +74,21 @@ function Toast({ toast, onDismiss }: ToastProps) {
       aria-atomic="true"
     >
       <div className="flex-shrink-0">{getIcon()}</div>
-      <p className="flex-1 text-sm font-medium">{toast.message}</p>
+      <div className="flex-1">
+        <p className="text-sm font-medium">{toast.message}</p>
+        {toast.action && (
+          <button
+            onClick={() => {
+              toast.action!.onClick();
+              handleDismiss();
+            }}
+            className="mt-2 text-xs underline hover:no-underline transition-all"
+            style={{ color: 'rgba(255, 255, 255, 0.9)' }}
+          >
+            {toast.action.label}
+          </button>
+        )}
+      </div>
       <button
         onClick={handleDismiss}
         className="flex-shrink-0 hover:opacity-75 transition-opacity"

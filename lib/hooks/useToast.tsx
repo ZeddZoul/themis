@@ -1,10 +1,17 @@
 import React, { createContext, useContext, useState, useCallback } from 'react';
 
+export interface ToastAction {
+  label: string;
+  onClick: () => void;
+}
+
 export interface Toast {
   id: string;
   type: 'success' | 'error' | 'info';
   message: string;
   duration?: number;
+  action?: ToastAction;
+  onDismiss?: () => void;
 }
 
 interface ToastContextValue {
@@ -23,7 +30,13 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
    * Note: No dependencies needed as it uses functional state update
    */
   const dismissToast = useCallback((id: string) => {
-    setToasts((prev) => prev.filter((toast) => toast.id !== id));
+    setToasts((prev) => {
+      const toast = prev.find(t => t.id === id);
+      if (toast?.onDismiss) {
+        toast.onDismiss();
+      }
+      return prev.filter((toast) => toast.id !== id);
+    });
   }, []);
 
   /**

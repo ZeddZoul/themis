@@ -34,13 +34,7 @@ export async function GET(request: Request) {
     const repositoryFilter = searchParams.get('repository') || 'all';
     const severityFilter = searchParams.get('severity') || 'all';
 
-    console.log('Fetching check history with filters:', {
-      page,
-      pageSize,
-      platform: platformFilter,
-      repository: repositoryFilter,
-      severity: severityFilter,
-    });
+
 
     // Build where clause for filtering
     const whereClause: any = {};
@@ -62,7 +56,7 @@ export async function GET(request: Request) {
       },
     });
 
-    console.log(`Found ${checkRunRecords.length} total check runs`);
+
 
     // Process check runs
     const checkRuns: CheckRun[] = checkRunRecords
@@ -148,7 +142,7 @@ export async function GET(request: Request) {
         return true;
       });
 
-    console.log(`After filtering: ${checkRuns.length} check runs`);
+
 
 
 
@@ -177,8 +171,7 @@ export async function GET(request: Request) {
       },
     });
   } catch (error: any) {
-    console.error('Error fetching check history:', error.message);
-    console.error('Error details:', error);
+    console.error('Error fetching check history:', error.message || 'Unknown error');
 
     return NextResponse.json(
       {

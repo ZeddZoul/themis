@@ -60,7 +60,7 @@ export async function POST(request: NextRequest) {
     // Use provided branch or default (we can't easily get default without repoId lookup, so default to main if not provided)
     const branch = branchName || 'main';
 
-    console.log(`Analyzing repository: ${owner}/${repo}@${branch} for ${checkType} compliance`);
+
 
     // Run AI-powered compliance check and persist to database
     const session = await getSession();
@@ -74,14 +74,14 @@ export async function POST(request: NextRequest) {
       accessToken
     );
 
-    console.log(`[Checks API] Created checkRunId: ${checkRunId}, verifying it exists...`);
+
 
     // Fetch the saved check run to return results
     const checkRun = await prisma.checkRun.findUnique({
       where: { id: checkRunId },
     });
 
-    console.log(`[Checks API] CheckRun verification: ${checkRun ? 'FOUND' : 'NOT FOUND'} - ${checkRunId}`);
+
 
     if (!checkRun) {
       throw new Error('Failed to retrieve check run results');
@@ -103,7 +103,7 @@ export async function POST(request: NextRequest) {
       issues,
     };
 
-    console.log(`Analysis complete and saved: ${issues.length} issues found`);
+
 
     return NextResponse.json(results);
   } catch (error: any) {

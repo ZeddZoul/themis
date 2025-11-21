@@ -13,7 +13,9 @@
     "validate:query": "node scripts/validate-tanstack-query.js",
     "validate:ui": "node scripts/validate-ui-components.js",
     "validate:performance": "node scripts/validate-performance.js",
-    "validate:a11y": "node scripts/validate-accessibility.js"
+    "validate:a11y": "node scripts/validate-accessibility.js",
+    "test:gemini": "tsx scripts/test-gemini.ts",
+    "test:ai": "tsx scripts/test-ai.ts"
   },
   "dependencies": {
     "@google/genai": "^1.30.0",

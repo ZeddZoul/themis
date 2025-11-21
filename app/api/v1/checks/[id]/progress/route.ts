@@ -9,61 +9,34 @@ export async function GET(
   try {
     const session = await getSession();
     if (!session?.user?.email) {
-      console.log(`[Progress API] Unauthorized access attempt for id: ${params.id}`);
+
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const { id } = params;
-    console.log(`[Progress API] Looking for checkRunId: ${id}`);
+
 
     const checkRun = await prisma.checkRun.findUnique({
       where: { id },
     });
 
     if (!checkRun) {
-      console.log(`[Progress API] CheckRun not found in database: ${id}`);
-      
-      // Let's also check if there are any checkRuns at all to debug
-      const allCheckRuns = await prisma.checkRun.findMany({
-        take: 5,
-        orderBy: { createdAt: 'desc' },
-        select: { id: true, createdAt: true, status: true }
-      });
-      console.log(`[Progress API] Recent checkRuns in database:`, allCheckRuns);
+
       
       return NextResponse.json({ error: 'Check run not found' }, { status: 404 });
     }
 
-    console.log(`[Progress API] Found checkRun: ${id}, status: ${checkRun.status}`);
 
-    // Calculate progress based on status and timestamps
+
+    // Simple status-based progress without time estimates
     let progress = 0;
-    let currentStep = 'Starting analysis...';
+    let currentStep = 'Themis is generating compliance report...';
     let fileCount = 0;
 
     switch (checkRun.status) {
       case 'IN_PROGRESS':
-        // Estimate progress based on time elapsed
-        const elapsed = Date.now() - checkRun.createdAt.getTime();
-        const estimatedDuration = 20000; // 20 seconds estimated
-        progress = Math.min(95, Math.floor((elapsed / estimatedDuration) * 100));
-        
-        // Set realistic step based on progress
-        if (progress < 10) {
-          currentStep = 'Starting analysis for repository...';
-        } else if (progress < 25) {
-          currentStep = 'Fetching repository files...';
-        } else if (progress < 40) {
-          currentStep = 'Running deterministic rules engine...';
-        } else if (progress < 55) {
-          currentStep = 'Found compliance violations, analyzing...';
-        } else if (progress < 70) {
-          currentStep = 'Running AI content validation...';
-        } else if (progress < 85) {
-          currentStep = 'Starting AI augmentation for issues...';
-        } else {
-          currentStep = 'AI analyzing violations and suggesting fixes...';
-        }
+        progress = 50; // Show some progress but don't estimate
+        currentStep = 'Themis is generating compliance report...';
         break;
         
       case 'COMPLETED':
@@ -86,7 +59,16 @@ export async function GET(
         
       default:
         progress = 0;
-        currentStep = 'Initializing...';
+        currentStep = 'Themis is generating compliance report...';
+    }
+
+    // Count files from completed analysis
+    if (checkRun.status === 'COMPLETED' && checkRun.issues && Array.isArray(checkRun.issues)) {
+      const files = new Set();
+      (checkRun.issues as any[]).forEach(issue => {
+        if (issue.file) files.add(issue.file);
+      });
+      fileCount = files.size;
     }
 
     return NextResponse.json({

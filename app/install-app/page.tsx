@@ -7,7 +7,6 @@ export default function InstallAppPage() {
   const handleInstall = () => {
     const appSlug = 'themis-checker';
     const url = `https://github.com/apps/${appSlug}/installations/new`;
-    console.log('Redirecting to:', url);
     window.location.href = url;
   };
 
