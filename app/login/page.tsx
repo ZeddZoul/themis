@@ -1,13 +1,46 @@
 import { LoginButton } from '@/components/auth/login-button';
 import { colors } from '@/lib/design-system';
+import Image from 'next/image';
 
 export default function LoginPage() {
   return (
-    <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: colors.background.subtle }}>
-      <div className="p-8 rounded-lg shadow-lg max-w-md w-full" style={{ backgroundColor: colors.background.main }}>
-        <h1 className="text-3xl font-bold mb-4 text-center" style={{ color: colors.text.primary }}>
-          Sign In
-        </h1>
+    <div className="min-h-screen flex items-center justify-center relative overflow-hidden" style={{ backgroundColor: colors.background.subtle }}>
+      {/* Background decoration */}
+      <div className="absolute inset-0 opacity-5">
+        <div 
+          className="absolute top-20 left-20 w-64 h-64 rounded-full blur-3xl"
+          style={{ backgroundColor: colors.primary.accent }}
+        />
+        <div 
+          className="absolute bottom-20 right-20 w-96 h-96 rounded-full blur-3xl"
+          style={{ backgroundColor: colors.status.info }}
+        />
+      </div>
+
+      <div className="relative z-10 p-8 rounded-lg shadow-lg max-w-md w-full border" style={{ 
+        backgroundColor: colors.background.main,
+        borderColor: colors.text.secondary + '20'
+      }}>
+        {/* Themis Branding */}
+        <div className="text-center mb-8">
+          <div className="flex justify-center mb-4">
+            <Image
+              src="/icon.png"
+              alt="Themis Logo"
+              width={64}
+              height={64}
+              className="rounded-lg"
+            />
+          </div>
+          <h1 className="text-3xl font-bold mb-2" style={{ color: colors.text.primary }}>
+            Welcome to Themis
+          </h1>
+          <p className="text-lg font-medium mb-4" style={{ color: colors.primary.accent }}>
+            Mobile App Compliance
+          </p>
+        </div>
+
+      
         <p className="mb-8 text-center" style={{ color: colors.text.secondary }}>
           Connect your GitHub account to start checking your repositories for compliance issues
         </p>

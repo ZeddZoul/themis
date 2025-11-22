@@ -48,11 +48,11 @@ const cleanupOldNotifications = (checks: Map<string, number>): Map<string, numbe
   const oneHourAgo = Date.now() - 60 * 60 * 1000;
   const cleaned = new Map<string, number>();
   
-  for (const [checkId, timestamp] of checks.entries()) {
+  checks.forEach((timestamp, checkId) => {
     if (timestamp >= oneHourAgo) {
       cleaned.set(checkId, timestamp);
     }
-  }
+  });
   
   return cleaned;
 };

@@ -27,13 +27,30 @@ export function CTA() {
               Join thousands of developers who use Themis to ensure their apps are compliant and ready for the store.
             </p>
             <Link href="/login">
-              <Button 
-                className="h-14 px-10 text-lg rounded-full bg-white hover:bg-gray-50 transition-all shadow-xl"
-                style={{ color: colors.primary.accent }}
+              <button
+                className="group relative inline-flex items-center justify-center px-10 py-4 text-lg font-semibold transition-all duration-300 ease-out rounded-full overflow-hidden"
+                style={{ 
+                  backgroundColor: '#FFFFFF',
+                  color: colors.primary.accent,
+                  boxShadow: '0 10px 30px -5px rgba(0, 0, 0, 0.2)',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-2px) scale(1.02)';
+                  e.currentTarget.style.boxShadow = '0 20px 40px -10px rgba(0, 0, 0, 0.3), 0 0 0 4px rgba(255, 255, 255, 0.3)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0) scale(1)';
+                  e.currentTarget.style.boxShadow = '0 10px 30px -5px rgba(0, 0, 0, 0.2)';
+                }}
               >
-                Start Checking Now
-                <FaArrowRight className="ml-2" />
-              </Button>
+                {/* Shine effect on hover */}
+                <span className="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-red-100/30 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
+                
+                <span className="relative flex items-center gap-2">
+                  Start Checking Now
+                  <FaArrowRight className="transition-transform duration-300 group-hover:translate-x-1" />
+                </span>
+              </button>
             </Link>
           </div>
         </div>

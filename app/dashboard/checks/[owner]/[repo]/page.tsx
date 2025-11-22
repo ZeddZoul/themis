@@ -353,11 +353,12 @@ export default function CheckHistoryPage() {
             </p>
             <div className="flex justify-center">
               <Button 
-                onClick={openCheckDialog}
+                onClick={() => router.push('/dashboard/repos')}
+                variant="secondary"
                 className="flex items-center gap-2"
               >
-                <FaPlay size={14} />
-                Run First Check
+                <FaChevronLeft size={14} />
+                Back to Repositories
               </Button>
             </div>
           </div>
@@ -462,16 +463,7 @@ export default function CheckHistoryPage() {
             ))}
           </div>
 
-          {/* Run New Check Button - At the bottom */}
-          <div className="flex justify-center pt-6 border-t" style={{ borderColor: colors.text.secondary + '20' }}>
-            <Button 
-              onClick={openCheckDialog}
-              className="flex items-center gap-2 px-6 py-3"
-            >
-              <FaPlay size={16} />
-              Run New Check
-            </Button>
-          </div>
+
         </>
       )}
 
