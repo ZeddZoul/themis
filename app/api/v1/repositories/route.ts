@@ -45,6 +45,7 @@ export async function GET(request: Request) {
     let installationId: string | undefined;
     
     console.log('[DEBUG] Fetching repos for user:', session.user?.githubId);
+    console.log('[DEBUG] Session user object:', JSON.stringify(session.user, null, 2));
 
     try {
       let username = session.user?.githubId || '';
@@ -52,6 +53,7 @@ export async function GET(request: Request) {
       // Try to resolve numeric ID to username
       if (username && /^\d+$/.test(username)) {
         try {
+          console.log('[DEBUG] Attempting to resolve numeric ID to username:', username);
           const { data: githubUser } = await appOctokit.request('GET /user/{id}', {
             id: username
           });
@@ -59,14 +61,17 @@ export async function GET(request: Request) {
             username = githubUser.login;
             console.log('[DEBUG] Resolved username:', username);
           }
-        } catch (e) {
-          console.log('[DEBUG] Could not resolve username from ID, trying ID as username');
+        } catch (e: any) {
+          console.log('[DEBUG] Could not resolve username from ID:', e.message);
         }
       }
 
+      console.log('[DEBUG] Looking up installation for username:', username);
       const { data: installation } = await appOctokit.request('GET /users/{username}/installation', {
         username: username,
       });
+      
+      console.log('[DEBUG] Installation response:', JSON.stringify(installation, null, 2));
       
       if (installation && installation.id) {
         installationId = String(installation.id);
@@ -74,6 +79,7 @@ export async function GET(request: Request) {
       }
     } catch (error: any) {
       console.log('[DEBUG] Error finding installation:', error.status, error.message);
+      console.log('[DEBUG] Full error:', JSON.stringify(error, null, 2));
       if (error.status === 404) {
         // App not installed for this user
         return NextResponse.json({ 
@@ -95,6 +101,7 @@ export async function GET(request: Request) {
     }
 
     // 3. Get a user-authenticated client
+    console.log('[DEBUG] Creating user-authenticated client with access token present:', !!session.user?.accessToken);
     const userOctokit = getGithubClient(session.user?.accessToken);
     
     // Fetch all repositories (GitHub API paginates at 30 per page)
@@ -111,7 +118,10 @@ export async function GET(request: Request) {
           page: fetchPage,
         });
         
+        console.log(`[DEBUG] Page ${fetchPage} response:`, JSON.stringify(data, null, 2));
         console.log(`[DEBUG] Page ${fetchPage} returned ${data.repositories?.length || 0} repos`);
+        console.log(`[DEBUG] Total count in response:`, data.total_count);
+        
         repositories = repositories.concat(data.repositories || []);
         
         // Check if there are more pages
@@ -122,9 +132,12 @@ export async function GET(request: Request) {
         if (fetchPage > 10) break;
       } catch (err: any) {
         console.error('[DEBUG] Error listing repos:', err.message);
+        console.error('[DEBUG] Full error:', JSON.stringify(err, null, 2));
         throw err;
       }
     }
+    
+    console.log('[DEBUG] Total repositories fetched:', repositories.length);
     
 
 
@@ -234,6 +247,8 @@ export async function GET(request: Request) {
     });
   } catch (error: any) {
     console.error('Error fetching repositories:', error.message || 'Unknown error');
+    console.error('Full error stack:', error.stack);
+    console.error('Error object:', JSON.stringify(error, null, 2));
     
     // Return empty array instead of error so UI doesn't break
     return NextResponse.json({ 

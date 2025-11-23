@@ -22,7 +22,15 @@ export async function GET(request: Request) {
   
   const redirectUri = `${baseUrl}/api/v1/auth/github/callback`;
   
-  const githubAuthUrl = `https://github.com/login/oauth/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&prompt=consent&t=${Date.now()}`;
+  // Request necessary OAuth scopes
+  // - repo: Access to private repositories
+  // - read:user: Read user profile data
+  // - user:email: Access to user email addresses
+  const scope = 'repo read:user user:email';
+  
+  const githubAuthUrl = `https://github.com/login/oauth/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&scope=${encodeURIComponent(scope)}&prompt=consent&t=${Date.now()}`;
+  
+  console.log('Redirecting to GitHub OAuth with scopes:', scope);
   
   return NextResponse.redirect(githubAuthUrl);
 }
