@@ -75,12 +75,24 @@ export async function GET(request: NextRequest) {
     // Check if GitHub App is installed
     try {
       const { getGithubClient } = await import('@/lib/github');
-      const octokit = getGithubClient();
-      await octokit.request('GET /installation/repositories');
-      // App is installed, go to dashboard
-      return NextResponse.redirect(`${baseUrl}/dashboard`);
+      // Use the user's access token to check if they have access to any repositories via the app
+      const octokit = getGithubClient(tokenData.access_token);
+      const { data } = await octokit.request('GET /user/installations');
+      
+      // Check if any of the installations match our App ID
+      const hasAppInstallation = data.installations.some(
+        (inst: any) => String(inst.app_id) === String(process.env.GITHUB_APP_ID)
+      );
+      
+      // If the user has an installation of OUR app, they are "installed"
+      if (hasAppInstallation) {
+        return NextResponse.redirect(`${baseUrl}/dashboard`);
+      } else {
+        return NextResponse.redirect(`${baseUrl}/install-app`);
+      }
     } catch (error) {
-      // App not installed, redirect to installation page
+      console.error('Error checking installation status:', error);
+      // App not installed or error checking, redirect to installation page
       return NextResponse.redirect(`${baseUrl}/install-app`);
     }
   } catch (error) {
