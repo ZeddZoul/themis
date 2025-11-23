@@ -89,7 +89,7 @@ export async function GET(request: Request) {
     }
 
     // 3. Get a user-authenticated client
-    const userOctokit = getGithubClient(session.user.accessToken);
+    const userOctokit = getGithubClient(session.user?.accessToken);
     
     // Fetch all repositories (GitHub API paginates at 30 per page)
     let repositories: any[] = [];
