@@ -1,0 +1,119 @@
+{
+  "apiVersion": "serving.knative.dev/v1",
+  "kind": "Service",
+  "metadata": {
+    "annotations": {
+      "run.googleapis.com/client-name": "gcloud",
+      "run.googleapis.com/client-version": "548.0.0",
+      "run.googleapis.com/ingress": "all",
+      "run.googleapis.com/ingress-status": "all",
+      "run.googleapis.com/maxScale": "10",
+      "run.googleapis.com/operation-id": "4578247f-19c0-4162-bbc6-260bfb34f76d",
+      "run.googleapis.com/urls": "[\"https://themis-checker-575159874525.us-central1.run.app\",\"https://themis-checker-ebiucphrzq-uc.a.run.app\"]",
+      "serving.knative.dev/creator": "Adelewisdom@gmail.com",
+      "serving.knative.dev/lastModifier": "Adelewisdom@gmail.com"
+    },
+    "creationTimestamp": "2025-11-22T23:31:57.699230Z",
+    "generation": 15,
+    "labels": {
+      "cloud.googleapis.com/location": "us-central1"
+    },
+    "name": "themis-checker",
+    "namespace": "575159874525",
+    "resourceVersion": "AAZEPZgaePQ",
+    "selfLink": "/apis/serving.knative.dev/v1/namespaces/575159874525/services/themis-checker",
+    "uid": "d26f5e41-054c-4c93-95af-a42eb84fe5a1"
+  },
+  "spec": {
+    "template": {
+      "metadata": {
+        "annotations": {
+          "autoscaling.knative.dev/maxScale": "10",
+          "run.googleapis.com/client-name": "gcloud",
+          "run.googleapis.com/client-version": "548.0.0",
+          "run.googleapis.com/cloudsql-instances": "themis-checker:us-central1:themis-db",
+          "run.googleapis.com/startup-cpu-boost": "true"
+        },
+        "labels": {
+          "client.knative.dev/nonce": "mqfimbyzql",
+          "run.googleapis.com/startupProbeType": "Default"
+        }
+      },
+      "spec": {
+        "containerConcurrency": 160,
+        "containers": [
+          {
+            "env": [
+              {
+                "name": "NODE_ENV",
+                "value": "production"
+              }
+            ],
+            "image": "gcr.io/themis-checker/themis-checker:latest",
+            "ports": [
+              {
+                "containerPort": 8080,
+                "name": "http1"
+              }
+            ],
+            "resources": {
+              "limits": {
+                "cpu": "2",
+                "memory": "2Gi"
+              }
+            },
+            "startupProbe": {
+              "failureThreshold": 1,
+              "periodSeconds": 240,
+              "tcpSocket": {
+                "port": 8080
+              },
+              "timeoutSeconds": 240
+            }
+          }
+        ],
+        "serviceAccountName": "575159874525-compute@developer.gserviceaccount.com",
+        "timeoutSeconds": 300
+      }
+    },
+    "traffic": [
+      {
+        "latestRevision": true,
+        "percent": 100
+      }
+    ]
+  },
+  "status": {
+    "address": {
+      "url": "https://themis-checker-ebiucphrzq-uc.a.run.app"
+    },
+    "conditions": [
+      {
+        "lastTransitionTime": "2025-11-23T06:59:55.829492Z",
+        "status": "True",
+        "type": "Ready"
+      },
+      {
+        "lastTransitionTime": "2025-11-23T06:59:40.135Z",
+        "status": "True",
+        "type": "ConfigurationsReady"
+      },
+      {
+        "lastTransitionTime": "2025-11-23T06:59:55.791041Z",
+        "status": "True",
+        "type": "RoutesReady"
+      }
+    ],
+    "latestCreatedRevisionName": "themis-checker-00015-jd9",
+    "latestReadyRevisionName": "themis-checker-00015-jd9",
+    "observedGeneration": 15,
+    "traffic": [
+      {
+        "latestRevision": true,
+        "percent": 100,
+        "revisionName": "themis-checker-00015-jd9"
+      }
+    ],
+    "url": "https://themis-checker-ebiucphrzq-uc.a.run.app"
+  }
+}

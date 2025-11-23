@@ -5,9 +5,14 @@ import { getSession } from '@/lib/session';
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
   const code = searchParams.get('code');
+  
+  // Get proper base URL
+  const host = request.headers.get('host');
+  const protocol = request.headers.get('x-forwarded-proto') || 'https';
+  const baseUrl = `${protocol}://${host}`;
 
   if (!code) {
-    return NextResponse.redirect(new URL('/login?error=no_code', request.url));
+    return NextResponse.redirect(`${baseUrl}/login?error=no_code`);
   }
 
   try {
@@ -79,7 +84,17 @@ export async function GET(request: NextRequest) {
       return NextResponse.redirect(new URL('/install-app', request.url));
     }
   } catch (error) {
-    console.error('GitHub auth failed:', error instanceof Error ? error.message : 'Unknown error');
-    return NextResponse.redirect(new URL('/login?error=auth_failed', request.url));
+    console.error('GitHub auth failed:', error);
+    console.error('Error details:', {
+      message: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined,
+    });
+    
+    // Get proper base URL
+    const host = request.headers.get('host');
+    const protocol = request.headers.get('x-forwarded-proto') || 'https';
+    const baseUrl = `${protocol}://${host}`;
+    
+    return NextResponse.redirect(`${baseUrl}/login?error=auth_failed`);
   }
 }

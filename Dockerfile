@@ -53,7 +53,7 @@ COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
 COPY --from=builder /app/prisma ./prisma
 
-# Copy all node_modules to ensure Prisma client is included
+# Copy all node_modules to ensure Prisma client and sharp are included
 COPY --from=builder /app/node_modules ./node_modules
 
 # Set correct permissions

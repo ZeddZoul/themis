@@ -36,8 +36,8 @@ SERVICE_NAME="themis-checker"
 REGION="${REGION:-us-central1}"
 IMAGE_NAME="gcr.io/${PROJECT_ID}/${SERVICE_NAME}"
 
-echo -e "${BLUE}📦 Building Docker image...${NC}"
-docker build -t ${IMAGE_NAME}:latest .
+echo -e "${BLUE}📦 Building Docker image for Cloud Run (linux/amd64)...${NC}"
+docker build --platform linux/amd64 -t ${IMAGE_NAME}:latest .
 
 echo -e "${BLUE}📤 Pushing image to Google Container Registry...${NC}"
 docker push ${IMAGE_NAME}:latest
