@@ -44,6 +44,8 @@ export async function GET(request: Request) {
     // We need to know which installation to query
     let installationId: string | undefined;
     
+    console.log('[DEBUG] Fetching repos for user:', session.user?.githubId);
+
     try {
       let username = session.user?.githubId || '';
       
@@ -55,9 +57,10 @@ export async function GET(request: Request) {
           });
           if (githubUser && githubUser.login) {
             username = githubUser.login;
+            console.log('[DEBUG] Resolved username:', username);
           }
         } catch (e) {
-          console.log('Could not resolve username from ID, trying ID as username');
+          console.log('[DEBUG] Could not resolve username from ID, trying ID as username');
         }
       }
 
@@ -67,8 +70,10 @@ export async function GET(request: Request) {
       
       if (installation && installation.id) {
         installationId = String(installation.id);
+        console.log('[DEBUG] Found installation ID:', installationId);
       }
     } catch (error: any) {
+      console.log('[DEBUG] Error finding installation:', error.status, error.message);
       if (error.status === 404) {
         // App not installed for this user
         return NextResponse.json({ 
@@ -81,6 +86,7 @@ export async function GET(request: Request) {
     }
 
     if (!installationId) {
+      console.log('[DEBUG] No installation ID found');
       return NextResponse.json({ 
         repositories: [],
         pagination: { total: 0, page: 1, pageSize, totalPages: 0 },
@@ -97,20 +103,27 @@ export async function GET(request: Request) {
     let hasMore = true;
     
     while (hasMore) {
-      const { data } = await userOctokit.request('GET /user/installations/{installation_id}/repositories', {
-        installation_id: Number(installationId),
-        per_page: 100,
-        page: fetchPage,
-      });
-      
-      repositories = repositories.concat(data.repositories || []);
-      
-      // Check if there are more pages
-      hasMore = data.repositories && data.repositories.length === 100;
-      fetchPage++;
-      
-      // Safety limit to prevent infinite loops
-      if (fetchPage > 10) break;
+      try {
+        console.log(`[DEBUG] Fetching page ${fetchPage} for installation ${installationId}`);
+        const { data } = await userOctokit.request('GET /user/installations/{installation_id}/repositories', {
+          installation_id: Number(installationId),
+          per_page: 100,
+          page: fetchPage,
+        });
+        
+        console.log(`[DEBUG] Page ${fetchPage} returned ${data.repositories?.length || 0} repos`);
+        repositories = repositories.concat(data.repositories || []);
+        
+        // Check if there are more pages
+        hasMore = data.repositories && data.repositories.length === 100;
+        fetchPage++;
+        
+        // Safety limit to prevent infinite loops
+        if (fetchPage > 10) break;
+      } catch (err: any) {
+        console.error('[DEBUG] Error listing repos:', err.message);
+        throw err;
+      }
     }
     
 
