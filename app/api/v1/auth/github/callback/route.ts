@@ -75,33 +75,27 @@ export async function GET(request: NextRequest) {
     // Check if GitHub App is installed
     try {
       const { getGithubClient } = await import('@/lib/github');
-      // Use the user's access token to check if they have access to any repositories via the app
-      const octokit = getGithubClient(tokenData.access_token);
-      const { data } = await octokit.request('GET /user/installations');
       
-      console.log('Debug Installation Check:', {
-        envAppId: process.env.GITHUB_APP_ID,
-        totalCount: data.total_count,
-        installationsFound: data.installations.map((i: any) => ({
-          id: i.id,
-          app_id: i.app_id,
-          app_slug: i.app_slug,
-          account: i.account.login
-        }))
-      });
-
-      // Check if any of the installations match our App ID
-      const hasAppInstallation = data.installations.some(
-        (inst: any) => String(inst.app_id) === String(process.env.GITHUB_APP_ID)
-      );
+      // Use App Authentication (JWT) to check if the user has installed the app
+      // This is more reliable than using the user token which might have limited scopes
+      const appOctokit = getGithubClient();
       
-      console.log('Installation Check Result:', { hasAppInstallation });
+      console.log(`Checking installation for user: ${githubUser.login}`);
       
-      // If the user has an installation of OUR app, they are "installed"
-      if (hasAppInstallation) {
+      try {
+        await appOctokit.request('GET /users/{username}/installation', {
+          username: githubUser.login,
+        });
+        
+        // If we get here (200 OK), the app is installed
+        console.log('Installation found via App Auth');
         return NextResponse.redirect(`${baseUrl}/dashboard`);
-      } else {
-        return NextResponse.redirect(`${baseUrl}/install-app`);
+      } catch (err: any) {
+        if (err.status === 404) {
+          console.log('No installation found via App Auth (404)');
+          return NextResponse.redirect(`${baseUrl}/install-app`);
+        }
+        throw err; // Re-throw other errors
       }
     } catch (error) {
       console.error('Error checking installation status:', error);
