@@ -10,7 +10,7 @@ import { createAppAuth } from '@octokit/auth-app';
  * 
  * For setup instructions, see: docs/github-app-setup.md
  */
-export function getGithubClient(accessToken?: string) {
+export function getGithubClient(accessToken?: string, installationId?: string) {
   if (accessToken) {
     return new Octokit({
       auth: accessToken,
@@ -20,13 +20,20 @@ export function getGithubClient(accessToken?: string) {
   const hasGithubConfig = process.env.GITHUB_APP_ID && process.env.GITHUB_APP_PRIVATE_KEY;
 
   if (hasGithubConfig) {
+    const authConfig: any = {
+      appId: process.env.GITHUB_APP_ID,
+      privateKey: (process.env.GITHUB_APP_PRIVATE_KEY || '').replace(/\\n/g, '\n'),
+    };
+
+    // Only include installationId if provided or in env
+    const targetInstallationId = installationId || process.env.GITHUB_APP_INSTALLATION_ID;
+    if (targetInstallationId) {
+      authConfig.installationId = targetInstallationId;
+    }
+
     return new Octokit({
       authStrategy: createAppAuth,
-      auth: {
-        appId: process.env.GITHUB_APP_ID,
-        privateKey: (process.env.GITHUB_APP_PRIVATE_KEY || '').replace(/\\n/g, '\n'),
-        installationId: process.env.GITHUB_APP_INSTALLATION_ID,
-      },
+      auth: authConfig,
     });
   } else {
     return new Octokit();
