@@ -59,7 +59,7 @@ export const Badge = React.memo<BadgeProps>(function Badge({ variant, size = 'md
     warning: 'warning',
     error: 'error',
     info: 'info',
-    processing: 'spinner',
+    processing: 'loading',
   };
 
   return (

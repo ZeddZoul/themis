@@ -22,7 +22,6 @@ import {
   FaChevronLeft,
   FaChevronRight,
   FaSignOutAlt,
-  FaSpinner,
 } from 'react-icons/fa';
 import { RiGitRepositoryFill } from 'react-icons/ri';
 import { VscIssues } from 'react-icons/vsc';
@@ -60,9 +59,6 @@ export const iconMap = {
   collapseLeftFilled: TbLayoutSidebarLeftCollapseFilled,
   collapseRight: TbLayoutSidebarRightCollapse,
   collapseRightFilled: TbLayoutSidebarRightCollapseFilled,
-  
-  // Loading/processing icons
-  spinner: FaSpinner,
 } as const;
 
 export type IconName = keyof typeof iconMap;
@@ -70,7 +66,7 @@ export type IconName = keyof typeof iconMap;
 /**
  * Icon state types for dynamic coloring
  */
-export type IconState = 'active' | 'inactive' | 'hover' | 'success' | 'error' | 'warning' | 'info' | 'white' | 'processing';
+export type IconState = 'active' | 'inactive' | 'hover' | 'success' | 'error' | 'warning' | 'info' | 'white';
 
 /**
  * Props for the DynamicIcon component
@@ -111,8 +107,6 @@ function getIconColor(state: IconState): string {
       return colors.status.info;
     case 'white':
       return '#FFFFFF';
-    case 'processing':
-      return colors.primary.accent;
     default:
       return colors.text.primary;
   }

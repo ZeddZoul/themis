@@ -152,7 +152,7 @@ export default function RepositoriesPage() {
       setLoadingRepo('');
       setCheckRunId('');
     }
-  }, [showToast, queryClient, router]);
+  }, [showToast, queryClient]);
 
   // Handle completion from loading component
   const handleLoadingComplete = useCallback(() => {

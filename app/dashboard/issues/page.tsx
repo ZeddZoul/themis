@@ -208,7 +208,7 @@ export default function IssuesHistoryPage() {
       
       throw error; // Re-throw to let the table handle the error state
     }
-  }, [checkRuns, showToast, queryClient, refetch]);
+  }, [checkRuns, showToast, queryClient, queryFilters, refetch]);
 
 
 
