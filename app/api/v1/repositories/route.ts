@@ -37,27 +37,63 @@ export async function GET(request: Request) {
 
 
     
-    const octokit = getGithubClient();
+    // 1. Get the App-authenticated client (JWT)
+    const appOctokit = getGithubClient();
+    
+    // 2. Find the installation ID for this user
+    // We need to know which installation to query
+    let installationId: string | undefined;
+    
+    try {
+      const { data: installation } = await appOctokit.request('GET /users/{username}/installation', {
+        username: session.user?.githubId || '',
+      });
+      
+      if (installation && installation.id) {
+        installationId = String(installation.id);
+      }
+    } catch (error: any) {
+      if (error.status === 404) {
+        // App not installed for this user
+        return NextResponse.json({ 
+          repositories: [],
+          pagination: { total: 0, page: 1, pageSize, totalPages: 0 },
+          needsInstallation: true 
+        });
+      }
+      throw error;
+    }
+
+    if (!installationId) {
+      return NextResponse.json({ 
+        repositories: [],
+        pagination: { total: 0, page: 1, pageSize, totalPages: 0 },
+        needsInstallation: true 
+      });
+    }
+
+    // 3. Get an installation-authenticated client
+    const installationOctokit = getGithubClient(undefined, installationId);
     
     // Fetch all repositories (GitHub API paginates at 30 per page)
     let repositories: any[] = [];
-    let currentPage = 1;
+    let fetchPage = 1;
     let hasMore = true;
     
     while (hasMore) {
-      const { data } = await octokit.request('GET /installation/repositories', {
+      const { data } = await installationOctokit.request('GET /installation/repositories', {
         per_page: 100,
-        page: currentPage,
+        page: fetchPage,
       });
       
       repositories = repositories.concat(data.repositories || []);
       
       // Check if there are more pages
       hasMore = data.repositories && data.repositories.length === 100;
-      currentPage++;
+      fetchPage++;
       
       // Safety limit to prevent infinite loops
-      if (currentPage > 10) break;
+      if (fetchPage > 10) break;
     }
     
 

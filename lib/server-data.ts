@@ -37,11 +37,35 @@ async function fetchDashboardStatsInternal(userId: string): Promise<DashboardSta
     // Fetch total repositories from GitHub
     let totalRepositories = 0;
     try {
-      const octokit = getGithubClient();
-      const { data } = await octokit.request('GET /installation/repositories');
-      totalRepositories = data.total_count || data.repositories?.length || 0;
+      // 1. Get the App-authenticated client (JWT)
+      const appOctokit = getGithubClient();
+      
+      // 2. Find the installation ID for this user
+      // We need to know which installation to query
+      // First get the user's GitHub username from the database
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { githubId: true }
+      });
+
+      if (user?.githubId) {
+        const { data: installation } = await appOctokit.request('GET /users/{username}/installation', {
+          username: user.githubId,
+        });
+      
+        if (installation && installation.id) {
+          // 3. Get an installation-authenticated client
+          // We pass undefined for accessToken (so it uses App Auth) and the specific installationId
+          const installationOctokit = getGithubClient(undefined, String(installation.id));
+          
+          // 4. List repositories for this installation
+          const { data: repos } = await installationOctokit.request('GET /installation/repositories');
+          totalRepositories = repos.total_count || repos.repositories?.length || 0;
+        }
+      }
     } catch (error) {
       console.error('Error fetching repositories count:', error);
+      // If 404, it means app is not installed for this user, so 0 repos is correct
     }
 
     // Get current date ranges for trend calculation
