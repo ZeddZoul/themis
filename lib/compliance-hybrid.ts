@@ -174,54 +174,67 @@ async function fetchRelevantFiles(
   branchName?: string,
   accessToken?: string
 ): Promise<{ [key: string]: string | null }> {
-  const filesToCheck = [
-    // Core documentation
+  // Prioritize essential files that are most likely to exist
+  const essentialFiles = [
     'README.md',
-    'LICENSE',
-    'index.html',
-    
-    // Mobile app files
     'package.json',
-    'app.json',
-    'app.config.js',
+    'manifest.json',
     'AndroidManifest.xml',
     'Info.plist',
+  ];
+  
+  // Secondary files to check only if we have time
+  const secondaryFiles = [
+    'LICENSE',
+    'index.html',
+    'app.json',
+    'app.config.js',
     'build.gradle',
     'app/build.gradle',
-    
-    // Chrome extension files
-    'manifest.json',
-    
-    // Privacy and legal
     'privacy-policy.md',
     'PRIVACY.md',
     'terms-of-service.md',
     'TERMS.md',
     'COMMUNITY_GUIDELINES.md',
-    
-    // Security configs
     'network_security_config.xml',
     'res/xml/network_security_config.xml',
     'PrivacyInfo.xcprivacy',
-    
-    // Additional config files
     'strings.xml',
     'res/values/strings.xml',
   ];
+  
+  const filesToCheck = [...essentialFiles, ...secondaryFiles];
 
   const files: { [key: string]: string | null } = {};
 
-  for (const file of filesToCheck) {
-    try {
-      const content = await getFileContent(owner, repo, file, branchName, accessToken);
+  // Fetch files in parallel with Promise.allSettled for better performance
+  console.log(`[Hybrid Engine] Fetching ${filesToCheck.length} files in parallel...`);
+  const startTime = Date.now();
+  
+  const results = await Promise.allSettled(
+    filesToCheck.map(async (file) => {
+      try {
+        const content = await getFileContent(owner, repo, file, branchName, accessToken);
+        return { file, content };
+      } catch (error) {
+        return { file, content: null };
+      }
+    })
+  );
+
+  // Process results
+  for (const result of results) {
+    if (result.status === 'fulfilled') {
+      const { file, content } = result.value;
       files[file] = content;
       if (content) {
         console.log(`[Hybrid Engine] ✓ Fetched ${file}`);
       }
-    } catch (error) {
-      files[file] = null;
     }
   }
+
+  const elapsed = Date.now() - startTime;
+  console.log(`[Hybrid Engine] Fetched ${Object.keys(files).length} files in ${elapsed}ms`);
 
   return files;
 }
