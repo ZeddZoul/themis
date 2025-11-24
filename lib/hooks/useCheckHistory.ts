@@ -43,7 +43,7 @@ async function fetchCheckHistory(filters?: CheckFilters): Promise<CheckHistoryRe
 
 /**
  * Hook for fetching check history with optional polling
- * Uses very short stale time (5 seconds) for better optimistic updates
+ * No caching - always fetches fresh data
  * 
  * @param filters - Filters for check history
  * @param enablePolling - Enable automatic polling every 30 seconds
@@ -52,8 +52,8 @@ export function useCheckHistory(filters?: CheckFilters, enablePolling = false) {
   return useQuery({
     queryKey: queryKeys.checks.history(filters),
     queryFn: () => fetchCheckHistory(filters),
-    staleTime: 5 * 1000, // 5 seconds for better optimistic updates
-    gcTime: 10 * 1000, // 10 seconds garbage collection time
+    staleTime: 0, // No caching - always fetch fresh data
+    gcTime: 0, // No garbage collection time - don't keep old data
     refetchInterval: enablePolling ? 30 * 1000 : false,
     refetchOnWindowFocus: true, // Refetch when window regains focus
     refetchOnMount: true, // Always refetch on mount

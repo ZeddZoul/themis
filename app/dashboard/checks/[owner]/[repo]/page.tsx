@@ -348,18 +348,9 @@ export default function CheckHistoryPage() {
             <h3 className="text-xl font-semibold mb-3" style={{ color: colors.text.primary }}>
               No Checks Found
             </h3>
-            <p className="mb-6" style={{ color: colors.text.secondary }}>
-              No compliance checks have been run on this repository yet. Start by running your first check.
+            <p style={{ color: colors.text.secondary }}>
+              No compliance checks have been run on this repository yet.
             </p>
-            <div className="flex justify-center">
-              <Button 
-                onClick={openCheckDialog}
-                className="flex items-center gap-2"
-              >
-                <FaPlay size={14} />
-                Run First Check
-              </Button>
-            </div>
           </div>
         </div>
       ) : (

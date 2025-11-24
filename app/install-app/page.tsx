@@ -5,7 +5,7 @@ import { colors } from '@/lib/design-system';
 
 export default function InstallAppPage() {
   const handleInstall = () => {
-    const appSlug = 'themis-checker';
+    const appSlug = 'themis-engine';
     const url = `https://github.com/apps/${appSlug}/installations/new`;
     window.location.href = url;
   };

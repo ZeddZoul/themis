@@ -9,6 +9,10 @@ export interface SessionData {
     email: string;
     name: string;
     accessToken?: string;
+    // Cached GitHub App installation data
+    installationId?: string;
+    totalRepositories?: number;
+    installationCachedAt?: number; // Timestamp for cache invalidation
   };
   isLoggedIn: boolean;
 }

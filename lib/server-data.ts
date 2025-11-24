@@ -31,62 +31,15 @@ interface User {
  * Internal function to fetch dashboard statistics
  * Wrapped by cached version below
  */
-async function fetchDashboardStatsInternal(userId: string, accessToken?: string): Promise<DashboardStats | null> {
+async function fetchDashboardStatsInternal(
+  userId: string, 
+  accessToken?: string,
+  cachedRepoCount?: number
+): Promise<DashboardStats | null> {
   try {
-
-    // Fetch total repositories from GitHub installation (same as repos page)
-    let totalRepositories = 0;
-    try {
-      if (accessToken) {
-        // Get the App-authenticated client to find installation
-        const appOctokit = getGithubClient();
-        
-        // Get user from database
-        const user = await prisma.user.findUnique({
-          where: { id: userId },
-          select: { githubId: true }
-        });
-
-        if (user?.githubId) {
-          let username = user.githubId;
-          
-          // Try to resolve numeric ID to username
-          try {
-            const { data: githubUser } = await appOctokit.request('GET /user/{id}', {
-              id: user.githubId
-            });
-            if (githubUser?.login) {
-              username = githubUser.login;
-            }
-          } catch (e) {
-            // Use githubId as username if resolution fails
-          }
-
-          // Find installation for this user
-          try {
-            const { data: installation } = await appOctokit.request('GET /users/{username}/installation', {
-              username: username,
-            });
-          
-            if (installation?.id) {
-              // Use installation-authenticated client to get repo count (same as repos page)
-              const installationOctokit = getGithubClient(undefined, String(installation.id));
-              const { data: repos } = await installationOctokit.request('GET /installation/repositories', {
-                per_page: 1 // We only need the total_count
-              });
-              totalRepositories = repos.total_count || 0;
-            }
-          } catch (installError: any) {
-            // If 404, app not installed - use 0
-            if (installError.status !== 404) {
-              console.error('Error fetching installation repos:', installError);
-            }
-          }
-        }
-      }
-    } catch (error) {
-      console.error('Error counting repositories:', error);
-    }
+    // Use cached repository count from session if available
+    // This avoids making redundant GitHub API calls
+    const totalRepositories = cachedRepoCount ?? 0;
 
     // Get current date ranges for trend calculation
     const now = new Date();
@@ -237,6 +190,7 @@ async function fetchDashboardStatsInternal(userId: string, accessToken?: string)
  * Fetch dashboard statistics on the server with caching
  * This function is optimized for Server Components with Next.js caching
  * Revalidates every 2 minutes (120 seconds)
+ * Uses cached repository count from session to avoid redundant GitHub API calls
  */
 export async function fetchDashboardStatsServer(): Promise<DashboardStats | null> {
   const session = await getSession();
@@ -245,9 +199,13 @@ export async function fetchDashboardStatsServer(): Promise<DashboardStats | null
     return null;
   }
 
+  // Use cached repository count from session if available
+  const cachedRepoCount = session.user.totalRepositories;
+
   // Use Next.js unstable_cache for server-side caching with revalidation
   const getCachedStats = unstable_cache(
-    async (userId: string, accessToken?: string) => fetchDashboardStatsInternal(userId, accessToken),
+    async (userId: string, accessToken?: string, repoCount?: number) => 
+      fetchDashboardStatsInternal(userId, accessToken, repoCount),
     ['dashboard-stats'],
     {
       revalidate: 120, // Revalidate every 2 minutes
@@ -255,7 +213,7 @@ export async function fetchDashboardStatsServer(): Promise<DashboardStats | null
     }
   );
 
-  return getCachedStats(session.user.id, session.user.accessToken);
+  return getCachedStats(session.user.id, session.user.accessToken, cachedRepoCount);
 }
 
 /**

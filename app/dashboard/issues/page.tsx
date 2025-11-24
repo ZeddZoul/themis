@@ -42,10 +42,9 @@ export default function IssuesHistoryPage() {
     severity: 'all',
   });
   
-  // Local state for optimistic updates
-  const [optimisticCheckRuns, setOptimisticCheckRuns] = useState<CheckRun[]>([]);
-  const [hasOptimisticUpdates, setHasOptimisticUpdates] = useState(false);
-
+  // Local state for check runs (updated directly after delete)
+  const [localCheckRuns, setLocalCheckRuns] = useState<CheckRun[] | null>(null);
+  
   // Build query filters for TanStack Query
   const queryFilters = useMemo(() => ({
     page: 1, // Always fetch page 1 since we're paginating client-side now
@@ -58,69 +57,18 @@ export default function IssuesHistoryPage() {
   // Determine if we should enable polling (e.g., if there are active checks)
   const enablePolling = false; // Can be enhanced to detect active checks
 
-  // Use TanStack Query hook for data fetching with caching and optional polling
-  const { data, isLoading, error, isFetching, refetch } = useCheckHistory(queryFilters, enablePolling);
+  // Use TanStack Query hook for data fetching without caching
+  const { data, isLoading, error, isFetching } = useCheckHistory(queryFilters, enablePolling);
 
-  /**
-   * Effect: Display error toast when check history loading fails
-   * Purpose: Provide user feedback for data fetching errors
-   * Dependencies: error, isLoading, showToast
-   * Note: Only runs when loading completes and an error exists
-   */
-  useEffect(() => {
-    if (error && !isLoading) {
-      showToast({
-        type: 'error',
-        message: error instanceof Error ? error.message : 'Failed to load check history',
-      });
-    }
-  }, [error, isLoading, showToast]);
-
-  // Memoize checkRuns to prevent unnecessary re-renders
-  const serverCheckRuns = useMemo(() => data?.checkRuns || [], [data?.checkRuns]);
-  
-  // Use optimistic data if available, otherwise use server data
+  // Use local state if available (after delete), otherwise use server data
   const checkRuns = useMemo(() => {
-    return hasOptimisticUpdates ? optimisticCheckRuns : serverCheckRuns;
-  }, [hasOptimisticUpdates, optimisticCheckRuns, serverCheckRuns]);
-  
-  // Update optimistic state when server data changes
-  useEffect(() => {
-    if (!hasOptimisticUpdates && serverCheckRuns.length > 0) {
-      setOptimisticCheckRuns(serverCheckRuns);
-    }
-  }, [serverCheckRuns, hasOptimisticUpdates]);
+    return localCheckRuns !== null ? localCheckRuns : (data?.checkRuns || []);
+  }, [localCheckRuns, data?.checkRuns]);
 
-  // Auto-sync optimistic updates with server data after a delay
+  // Reset local state when filters change
   useEffect(() => {
-    if (hasOptimisticUpdates) {
-      const syncTimer = setTimeout(async () => {
-        try {
-          // Force a refetch to sync with server
-          await refetch();
-          setHasOptimisticUpdates(false);
-        } catch (error) {
-          console.error('Failed to sync with server:', error);
-          // Force reset optimistic updates on error
-          setHasOptimisticUpdates(false);
-          showToast({
-            type: 'info',
-            message: 'Refreshing data to ensure accuracy...',
-          });
-        }
-      }, 3000); // Sync after 3 seconds
-
-      return () => clearTimeout(syncTimer);
-    }
-  }, [hasOptimisticUpdates, refetch, showToast]);
-
-  // Reset optimistic updates when filters change
-  useEffect(() => {
-    if (hasOptimisticUpdates) {
-      setHasOptimisticUpdates(false);
-      setOptimisticCheckRuns([]);
-    }
-  }, [filters, hasOptimisticUpdates]); // Reset when filters change
+    setLocalCheckRuns(null);
+  }, [filters]);
 
 
   // Extract unique repository names for filter dropdown
@@ -144,16 +92,10 @@ export default function IssuesHistoryPage() {
     router.push(`/check/results/${checkRun.id}`);
   }, [router]);
 
-  // Handle delete check runs with proper cache invalidation
+  // Handle delete check runs - delete all, update UI with returned list, show single success toast
   const handleDelete = useCallback(async (checkRunIds: string[]) => {
     try {
-      // Show deleting message
-      showToast({
-        type: 'info',
-        message: `Deleting ${checkRunIds.length} check run${checkRunIds.length > 1 ? 's' : ''}...`,
-      });
-
-      // Perform the delete operation
+      // Step 1: Perform the delete operation and wait for backend response
       const response = await fetch('/api/v1/checks/bulk-delete', {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
@@ -165,17 +107,20 @@ export default function IssuesHistoryPage() {
         throw new Error(errorData.error || 'Failed to delete check runs');
       }
 
-      // Invalidate all related caches
+      // Step 2: Get the updated list from backend response
+      const result = await response.json();
+
+      // Step 3: Update local state with new list (this updates UI immediately)
+      setLocalCheckRuns(result.checkRuns);
+
+      // Step 4: Invalidate related caches for other pages
       queryClient.invalidateQueries({ queryKey: queryKeys.checks.all });
       queryClient.invalidateQueries({ queryKey: queryKeys.stats.all });
 
-      // Force refetch from the hook to update the UI
-      await refetch();
-
-      // Show success message
+      // Step 5: Show single success toast after everything completes
       showToast({
         type: 'success',
-        message: `Deleted ${checkRunIds.length} check run${checkRunIds.length > 1 ? 's' : ''}`,
+        message: 'All deletes were successful',
       });
       
     } catch (error) {
@@ -188,7 +133,7 @@ export default function IssuesHistoryPage() {
       
       throw error;
     }
-  }, [showToast, queryClient, refetch]);
+  }, [showToast, queryClient]);
 
 
 
@@ -220,41 +165,7 @@ export default function IssuesHistoryPage() {
           />
         </div>
 
-        {/* Stale data indicator - shows when background revalidation is happening */}
-        {isFetching && !isLoading && !hasOptimisticUpdates && (
-          <div 
-            className="mb-4 p-2 rounded text-center text-sm flex items-center justify-center gap-2"
-            style={{ 
-              backgroundColor: colors.primary.accent + '10',
-              color: colors.primary.accent,
-            }}
-            role="status"
-            aria-live="polite"
-          >
-            <div 
-              className="w-3 h-3 rounded-full border border-current border-t-transparent animate-spin"
-            />
-            Updating check history...
-          </div>
-        )}
 
-        {/* Optimistic updates indicator */}
-        {hasOptimisticUpdates && (
-          <div 
-            className="mb-4 p-2 rounded text-center text-sm flex items-center justify-center gap-2"
-            style={{ 
-              backgroundColor: colors.status.warning + '10',
-              color: colors.status.warning,
-            }}
-            role="status"
-            aria-live="polite"
-          >
-            <div 
-              className="w-3 h-3 rounded-full border border-current border-t-transparent animate-spin"
-            />
-            Syncing changes with server...
-          </div>
-        )}
 
         {/* Loading State */}
         {isLoading && (
@@ -298,11 +209,6 @@ export default function IssuesHistoryPage() {
                   style={{ color: colors.text.secondary }}
                 >
                   Showing {checkRuns.length} of {checkRuns.length} check runs
-                  {hasOptimisticUpdates && (
-                    <span className="ml-2 text-xs" style={{ color: colors.status.warning }}>
-                      (syncing...)
-                    </span>
-                  )}
                 </p>
               </div>
             )}

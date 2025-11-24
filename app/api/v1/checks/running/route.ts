@@ -2,6 +2,9 @@ import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/session';
 import { prisma } from '@/lib/prisma';
 
+// Mark as dynamic since we use cookies for session
+export const dynamic = 'force-dynamic';
+
 export async function GET() {
   try {
     const session = await getSession();

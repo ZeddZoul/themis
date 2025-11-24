@@ -22,56 +22,25 @@ export async function GET() {
   }
 
   try {
-    // Fetch total repositories from GitHub installation (same as repos page)
-    let totalRepositories = 0;
-    try {
-      const accessToken = session.user?.accessToken;
-      if (accessToken) {
-        // Get the App-authenticated client to find installation
-        const appOctokit = getGithubClient();
+    // Use cached repository count from session to avoid redundant GitHub API calls
+    // This is populated during login and refreshed periodically
+    let totalRepositories = session.user?.totalRepositories ?? 0;
+    
+    // If cache is missing or stale, try to refresh it
+    if (!totalRepositories || !session.user?.installationCachedAt) {
+      try {
+        const { getOrRefreshInstallationCache, updateSessionCache } = await import('@/lib/session-cache');
+        const installationCache = await getOrRefreshInstallationCache(session, session.user?.githubUsername);
         
-        // Find installation for this user
-        try {
-          // Get username from session or GitHub API
-          let username = session.user?.githubId;
-          
-          if (username && /^\d+$/.test(username)) {
-            // If it's a numeric ID, try to resolve to username
-            try {
-              const userOctokit = getGithubClient(accessToken);
-              const { data: githubUser } = await userOctokit.request('GET /user');
-              if (githubUser?.login) {
-                username = githubUser.login;
-              }
-            } catch (e) {
-              // Use numeric ID as fallback
-            }
-          }
-
-          if (username) {
-            const { data: installation } = await appOctokit.request('GET /users/{username}/installation', {
-              username: username,
-            });
-          
-            if (installation?.id) {
-              // Use installation-authenticated client to get repo count (same as repos page)
-              const installationOctokit = getGithubClient(undefined, String(installation.id));
-              const { data: repos } = await installationOctokit.request('GET /installation/repositories', {
-                per_page: 1 // We only need the total_count
-              });
-              totalRepositories = repos.total_count || 0;
-            }
-          }
-        } catch (installError: any) {
-          // If 404, app not installed - use 0
-          if (installError.status !== 404) {
-            console.error('Error fetching installation repos:', installError);
-          }
+        if (installationCache) {
+          totalRepositories = installationCache.totalRepositories;
+          updateSessionCache(session, installationCache);
+          await session.save();
         }
+      } catch (error) {
+        console.error('Error refreshing installation cache:', error);
+        // Continue with 0 if cache refresh fails
       }
-    } catch (error) {
-      console.error('Error fetching repositories count:', error);
-      // Continue with 0 if GitHub API fails
     }
 
     // Get current date ranges for trend calculation

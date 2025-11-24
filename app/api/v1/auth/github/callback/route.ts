@@ -71,36 +71,37 @@ export async function GET(request: NextRequest) {
       accessToken: tokenData.access_token,
     };
     session.isLoggedIn = true;
-    await session.save();
 
-    // Check if GitHub App is installed
+    // Check if GitHub App is installed and cache installation data
     try {
       const { getGithubClient } = await import('@/lib/github');
-      
-      // Use App Authentication (JWT) to check if the user has installed the app
-      // This is more reliable than using the user token which might have limited scopes
-      const appOctokit = getGithubClient();
+      const { fetchInstallationData, updateSessionCache } = await import('@/lib/session-cache');
       
       console.log(`Checking installation for user: ${githubUser.login}`);
       
-      try {
-        await appOctokit.request('GET /users/{username}/installation', {
-          username: githubUser.login,
+      // Fetch installation data (includes repo count)
+      const installationCache = await fetchInstallationData(githubUser.login);
+      
+      if (installationCache) {
+        // Cache installation data in session
+        updateSessionCache(session, installationCache);
+        console.log('Installation found and cached:', {
+          installationId: installationCache.installationId,
+          totalRepositories: installationCache.totalRepositories,
         });
         
-        // If we get here (200 OK), the app is installed
-        console.log('Installation found via App Auth');
+        await session.save();
         return NextResponse.redirect(`${baseUrl}/dashboard`);
-      } catch (err: any) {
-        if (err.status === 404) {
-          console.log('No installation found via App Auth (404)');
-          return NextResponse.redirect(`${baseUrl}/install-app`);
-        }
-        throw err; // Re-throw other errors
+      } else {
+        // No installation found
+        console.log('No installation found (404)');
+        await session.save();
+        return NextResponse.redirect(`${baseUrl}/install-app`);
       }
     } catch (error) {
       console.error('Error checking installation status:', error);
       // App not installed or error checking, redirect to installation page
+      await session.save();
       return NextResponse.redirect(`${baseUrl}/install-app`);
     }
   } catch (error) {

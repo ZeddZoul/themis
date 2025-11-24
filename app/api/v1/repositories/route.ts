@@ -35,76 +35,27 @@ export async function GET(request: Request) {
     const pageSize = parseInt(searchParams.get('pageSize') || '10', 10);
     const search = searchParams.get('search') || '';
 
-
+    // Import session cache utilities
+    const { getOrRefreshInstallationCache, updateSessionCache } = await import('@/lib/session-cache');
     
-    // 1. Get the App-authenticated client (JWT)
-    const appOctokit = getGithubClient();
+    // Try to get installation data from cache or refresh if stale
+    let installationCache = await getOrRefreshInstallationCache(session, session.user?.githubUsername);
     
-    // 2. Find the installation ID for this user
-    // We need to know which installation to query
-    let installationId: string | undefined;
-    
-    console.log('[DEBUG] Fetching repos for user:', session.user?.githubId);
-    console.log('[DEBUG] Session user object:', JSON.stringify(session.user, null, 2));
-
-    try {
-      // Use the GitHub username from session, or fall back to resolving from OAuth token
-      let username = session.user?.githubUsername || '';
-      
-      // If no username in session, try to get it from the OAuth token
-      if (!username && session.user?.accessToken) {
-        try {
-          console.log('[DEBUG] No username in session, fetching from GitHub API');
-          const userOctokit = getGithubClient(session.user.accessToken);
-          const { data: githubUser } = await userOctokit.request('GET /user');
-          if (githubUser && githubUser.login) {
-            username = githubUser.login;
-            console.log('[DEBUG] Resolved username from OAuth token:', username);
-          }
-        } catch (e: any) {
-          console.log('[DEBUG] Could not resolve username from OAuth token:', e.message);
-        }
-      }
-      
-      // Last resort: use numeric ID (will likely fail but worth trying)
-      if (!username) {
-        username = session.user?.githubId || '';
-        console.log('[DEBUG] Using numeric ID as fallback:', username);
-      }
-
-      console.log('[DEBUG] Looking up installation for username:', username);
-      const { data: installation } = await appOctokit.request('GET /users/{username}/installation', {
-        username: username,
-      });
-      
-      console.log('[DEBUG] Installation response:', JSON.stringify(installation, null, 2));
-      
-      if (installation && installation.id) {
-        installationId = String(installation.id);
-        console.log('[DEBUG] Found installation ID:', installationId);
-      }
-    } catch (error: any) {
-      console.log('[DEBUG] Error finding installation:', error.status, error.message);
-      console.log('[DEBUG] Full error:', JSON.stringify(error, null, 2));
-      if (error.status === 404) {
-        // App not installed for this user
-        return NextResponse.json({ 
-          repositories: [],
-          pagination: { total: 0, page: 1, pageSize, totalPages: 0 },
-          needsInstallation: true 
-        });
-      }
-      throw error;
-    }
-
-    if (!installationId) {
-      console.log('[DEBUG] No installation ID found');
+    if (!installationCache) {
+      // App not installed for this user
       return NextResponse.json({ 
         repositories: [],
         pagination: { total: 0, page: 1, pageSize, totalPages: 0 },
         needsInstallation: true 
       });
     }
+    
+    // Update session cache if it was refreshed
+    updateSessionCache(session, installationCache);
+    await session.save();
+    
+    const installationId = installationCache.installationId;
+    console.log('[DEBUG] Using cached installation ID:', installationId);
 
     // 3. Get an installation-authenticated client
     // We need to use the installation ID to create an installation access token
@@ -115,6 +66,7 @@ export async function GET(request: Request) {
     let repositories: any[] = [];
     let fetchPage = 1;
     let hasMore = true;
+    let actualTotalCount = 0;
     
     while (hasMore) {
       try {
@@ -127,6 +79,11 @@ export async function GET(request: Request) {
         console.log(`[DEBUG] Page ${fetchPage} response:`, JSON.stringify(data, null, 2));
         console.log(`[DEBUG] Page ${fetchPage} returned ${data.repositories?.length || 0} repos`);
         console.log(`[DEBUG] Total count in response:`, data.total_count);
+        
+        // Store the actual total count from GitHub
+        if (fetchPage === 1) {
+          actualTotalCount = data.total_count || 0;
+        }
         
         repositories = repositories.concat(data.repositories || []);
         
@@ -144,6 +101,15 @@ export async function GET(request: Request) {
     }
     
     console.log('[DEBUG] Total repositories fetched:', repositories.length);
+    
+    // Update cache with actual count if it differs
+    if (actualTotalCount !== installationCache.totalRepositories) {
+      console.log('[DEBUG] Updating cached repo count:', actualTotalCount);
+      installationCache.totalRepositories = actualTotalCount;
+      installationCache.cachedAt = Date.now();
+      updateSessionCache(session, installationCache);
+      await session.save();
+    }
     
 
 
