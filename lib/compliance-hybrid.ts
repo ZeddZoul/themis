@@ -52,9 +52,9 @@ import * as fs from 'fs';
 import * as path from 'path';
 
 function logDebug(message: string) {
-  const logFile = path.join(process.cwd(), 'debug-log.txt');
+  // Use console.log instead of file logging for serverless environments
   const timestamp = new Date().toISOString();
-  fs.appendFileSync(logFile, `[${timestamp}] ${message}\n`);
+  console.log(`[${timestamp}] ${message}`);
 }
 
 
