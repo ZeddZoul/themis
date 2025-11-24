@@ -102,7 +102,7 @@ export async function analyzeRepositoryCompliance(
   checkType: 'APPLE_APP_STORE' | 'GOOGLE_PLAY_STORE' | 'CHROME_WEB_STORE' | 'MOBILE_PLATFORMS',
   branchName?: string,
   accessToken?: string
-): Promise<AnalysisResult> {
+): Promise<AnalysisResult & { files: { [key: string]: string | null } }> {
   try {
     logDebug(`Starting analysis for ${owner}/${repo}@${branchName || 'default'} (${checkType})`);
     logDebug(`Access Token present: ${!!accessToken}`);
@@ -112,12 +112,12 @@ export async function analyzeRepositoryCompliance(
     logDebug(`Fetched ${Object.keys(files).filter(k => files[k]).length} files`);
     logDebug(`File names: ${Object.keys(files).join(', ')}`);
     
-    // Step 2: Run deterministic rules engine
+    // Step 2: Run deterministic rules engine ONLY
     console.log(`[Hybrid Engine] Running deterministic rules engine...`);
     const violations = evaluateRules(files, checkType as RulePlatform);
     console.log(`[Hybrid Engine] Found ${violations.length} deterministic violations`);
     
-    // Step 3: Convert violations to issues
+    // Step 3: Convert violations to issues (NO AI augmentation)
     const issues: ComplianceIssue[] = violations.map(rule => ({
       ruleId: rule.ruleId,
       severity: rule.severity,
@@ -127,25 +127,11 @@ export async function analyzeRepositoryCompliance(
       file: findRelevantFile(rule, files),
     }));
     
-    // Step 4: AI Content Validation (validate file legitimacy)
-    console.log(`[Hybrid Engine] Running AI content validation...`);
-    const contentValidationIssues = await runContentValidation(files, checkType as RulePlatform);
-    console.log(`[Hybrid Engine] Found ${contentValidationIssues.length} content validation issues`);
-    
-    // Merge content validation issues with deterministic issues
-    const allIssues = [...issues, ...contentValidationIssues];
-    
-    // Step 5: AI Augmentation (batch processing to avoid rate limits)
-    console.log(`[Hybrid Engine] Starting AI batch augmentation for ${allIssues.length} issues...`);
-    console.log(`[Hybrid Engine] Available files for augmentation:`, Object.keys(files).length);
-    console.log(`[Hybrid Engine] Processing in batches of 5 to avoid rate limits...`);
-    
-    const augmentedIssues = await augmentIssuesInBatches(allIssues, files, checkType);
-    
-    console.log(`[Hybrid Engine] Analysis complete: ${augmentedIssues.length} issues (${issues.length} deterministic + AI enhancements)`);
+    console.log(`[Hybrid Engine] Analysis complete: ${issues.length} deterministic issues (AI augmentation available on-demand)`);
     
     return {
-      issues: augmentedIssues,
+      issues,
+      files, // Return files for caching
       success: true,
     };
   } catch (error) {
@@ -160,6 +146,7 @@ export async function analyzeRepositoryCompliance(
     });
     return {
       issues: [],
+      files: {},
       success: false,
     };
   }
@@ -823,13 +810,15 @@ export async function createCheckRun(
  */
 export async function updateCheckRunWithResults(
   checkRunId: string,
-  result: AnalysisResult
+  result: AnalysisResult,
+  files?: { [key: string]: string | null }
 ): Promise<void> {
   await prisma.checkRun.update({
     where: { id: checkRunId },
     data: {
       status: result.success ? 'COMPLETED' : 'FAILED',
       issues: result.issues as any,
+      files: files as any, // Cache files for later AI augmentation
       completedAt: new Date(),
     },
   });
@@ -913,7 +902,7 @@ export async function analyzeAndPersistCompliance(
   
   try {
     const result = await analyzeRepositoryCompliance(owner, repo, checkType, branchName, accessToken);
-    await updateCheckRunWithResults(checkRunId, result);
+    await updateCheckRunWithResults(checkRunId, result, result.files); // Cache files
     return checkRunId;
   } catch (error) {
     console.error('[Hybrid Engine] Analysis failed:', {
@@ -936,5 +925,55 @@ export async function analyzeAndPersistCompliance(
       },
     });
     throw error;
+  }
+}
+
+/**
+ * On-demand AI augmentation for a specific issue
+ */
+export async function augmentSingleIssue(
+  checkRunId: string,
+  ruleId: string
+): Promise<AIAugmentation | null> {
+  try {
+    // Fetch the check run
+    const checkRun = await prisma.checkRun.findUnique({
+      where: { id: checkRunId },
+    });
+
+    if (!checkRun) {
+      throw new Error('Check run not found');
+    }
+
+    // Find the specific issue
+    const issues = (checkRun.issues as any[]) || [];
+    const issue = issues.find((i: any) => i.ruleId === ruleId);
+
+    if (!issue) {
+      throw new Error('Issue not found');
+    }
+
+    // Use cached files if available, otherwise fetch
+    let files: { [key: string]: string | null };
+    if (checkRun.files) {
+      console.log(`[On-Demand AI] Using cached files for ${checkRun.owner}/${checkRun.repo}`);
+      files = checkRun.files as { [key: string]: string | null };
+    } else {
+      console.log(`[On-Demand AI] No cached files, fetching for ${checkRun.owner}/${checkRun.repo}`);
+      files = await fetchRelevantFiles(
+        checkRun.owner,
+        checkRun.repo,
+        checkRun.branchName
+      );
+    }
+
+    // Run AI augmentation for this single issue
+    console.log(`[On-Demand AI] Augmenting issue ${ruleId} for ${checkRun.owner}/${checkRun.repo}`);
+    const augmentation = await augmentIssueWithAI(issue, files, checkRun.checkType);
+
+    return augmentation;
+  } catch (error) {
+    console.error('[On-Demand AI] Error:', error);
+    return null;
   }
 }

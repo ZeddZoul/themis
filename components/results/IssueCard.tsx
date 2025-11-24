@@ -23,10 +23,22 @@ interface Issue {
 
 interface IssueCardProps {
   issue: Issue;
+  checkRunId?: string;
 }
 
-export const IssueCard = React.memo<IssueCardProps>(function IssueCard({ issue }) {
+export const IssueCard = React.memo<IssueCardProps>(function IssueCard({ issue, checkRunId }) {
   const [isExpanded, setIsExpanded] = useState(false);
+  const [loadingInsight, setLoadingInsight] = useState(false);
+  const [aiInsight, setAiInsight] = useState<{
+    aiPinpointLocation?: {
+      filePath: string;
+      lineNumbers: number[];
+    };
+    aiSuggestedFix?: {
+      explanation: string;
+      codeSnippet: string;
+    };
+  } | null>(null);
 
   const severityVariant = {
     high: 'error' as const,
@@ -37,6 +49,35 @@ export const IssueCard = React.memo<IssueCardProps>(function IssueCard({ issue }
   const toggleExpanded = React.useCallback(() => {
     setIsExpanded(prev => !prev);
   }, []);
+
+  const getThemisInsight = React.useCallback(async () => {
+    if (!checkRunId || !issue.ruleId || loadingInsight) return;
+    
+    setLoadingInsight(true);
+    try {
+      console.log(`Requesting AI insight for ${issue.ruleId} from /api/v1/checks/${checkRunId}/augment/${issue.ruleId}`);
+      const response = await fetch(`/api/v1/checks/${checkRunId}/augment/${issue.ruleId}`, {
+        method: 'POST',
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        console.log('AI insight received:', data);
+        setAiInsight(data.augmentation);
+      } else {
+        console.error('AI insight request failed:', response.status, await response.text());
+      }
+    } catch (error) {
+      console.error('Failed to get AI insight:', error);
+    } finally {
+      setLoadingInsight(false);
+    }
+  }, [checkRunId, issue.ruleId, loadingInsight]);
+
+  // Merge AI insight with existing issue data
+  const displayIssue = aiInsight ? { ...issue, ...aiInsight } : issue;
+  const hasAiInsight = !!(aiInsight || issue.aiPinpointLocation || issue.aiSuggestedFix);
+  const canGetInsight = checkRunId && issue.ruleId && !hasAiInsight;
 
   return (
     <div className="bg-white rounded-lg border overflow-hidden" style={{ borderColor: colors.text.secondary + '30' }}>
@@ -119,8 +160,48 @@ export const IssueCard = React.memo<IssueCardProps>(function IssueCard({ issue }
       {/* Expanded Content */}
       {isExpanded && (
         <div className="px-3 sm:px-4 pb-3 sm:pb-4 space-y-3 sm:space-y-4 animate-fadeIn">
+          {/* Get Themis Insight Button */}
+          {canGetInsight && (
+            <button
+              onClick={getThemisInsight}
+              disabled={loadingInsight}
+              className="w-full p-3 rounded-lg border-2 border-dashed transition-all hover:border-solid disabled:opacity-50 disabled:cursor-not-allowed"
+              style={{
+                borderColor: colors.primary.accent,
+                backgroundColor: colors.primary.accent + '05',
+              }}
+            >
+              <div className="flex items-center justify-center gap-2">
+                {loadingInsight ? (
+                  <>
+                    <svg className="animate-spin h-4 w-4" style={{ color: colors.primary.accent }} fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <span className="text-sm font-medium" style={{ color: colors.primary.accent }}>
+                      Analyzing with Themis AI...
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-5 h-5" style={{ color: colors.primary.accent }} fill="currentColor" viewBox="0 0 20 20">
+                      <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
+                      <path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd" />
+                    </svg>
+                    <span className="text-sm font-medium" style={{ color: colors.primary.accent }}>
+                      Get Themis Insight
+                    </span>
+                    <span className="text-xs" style={{ color: colors.text.secondary }}>
+                      (AI-powered line numbers & fixes)
+                    </span>
+                  </>
+                )}
+              </div>
+            </button>
+          )}
+
           {/* Themis Pinpoint Location - First (only for existing files with line numbers) */}
-          {issue.aiPinpointLocation && issue.aiPinpointLocation.lineNumbers && issue.aiPinpointLocation.lineNumbers.length > 0 && (
+          {displayIssue.aiPinpointLocation && displayIssue.aiPinpointLocation.lineNumbers && displayIssue.aiPinpointLocation.lineNumbers.length > 0 && (
             <div 
               className="p-3 sm:p-4 rounded-lg border"
               style={{ 
@@ -142,7 +223,7 @@ export const IssueCard = React.memo<IssueCardProps>(function IssueCard({ issue }
                     Themis-Detected Location
                   </h4>
                   <p className="text-xs" style={{ color: '#78350F' }}>
-                    {issue.aiPinpointLocation.filePath} - Lines: {issue.aiPinpointLocation.lineNumbers.join(', ')}
+                    {displayIssue.aiPinpointLocation.filePath} - Lines: {displayIssue.aiPinpointLocation.lineNumbers.join(', ')}
                   </p>
                 </div>
               </div>
@@ -185,7 +266,7 @@ export const IssueCard = React.memo<IssueCardProps>(function IssueCard({ issue }
           </div>
 
           {/* Themis Suggested Fix - Third (shows for both existing and missing files) */}
-          {issue.aiSuggestedFix && (issue.aiSuggestedFix.codeSnippet || issue.aiSuggestedFix.explanation) && (
+          {displayIssue.aiSuggestedFix && (displayIssue.aiSuggestedFix.codeSnippet || displayIssue.aiSuggestedFix.explanation) && (
             <div 
               className="p-3 sm:p-4 rounded-lg border-l-4"
               style={{ 
@@ -211,15 +292,15 @@ export const IssueCard = React.memo<IssueCardProps>(function IssueCard({ issue }
                   >
                     Themis-Suggested Fix
                   </h3>
-                  {issue.aiSuggestedFix.explanation && (
+                  {displayIssue.aiSuggestedFix.explanation && (
                     <p 
                       className="text-xs sm:text-sm mb-2"
                       style={{ color: '#064E3B' }}
                     >
-                      {issue.aiSuggestedFix.explanation}
+                      {displayIssue.aiSuggestedFix.explanation}
                     </p>
                   )}
-                  {issue.aiSuggestedFix.codeSnippet && (
+                  {displayIssue.aiSuggestedFix.codeSnippet && (
                     <div className="relative group">
                       <pre 
                         className="text-xs p-2 rounded overflow-x-auto"
@@ -229,12 +310,12 @@ export const IssueCard = React.memo<IssueCardProps>(function IssueCard({ issue }
                           border: '1px solid #A7F3D0',
                         }}
                       >
-                        <code>{issue.aiSuggestedFix.codeSnippet}</code>
+                        <code>{displayIssue.aiSuggestedFix.codeSnippet}</code>
                       </pre>
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          navigator.clipboard.writeText(issue.aiSuggestedFix!.codeSnippet);
+                          navigator.clipboard.writeText(displayIssue.aiSuggestedFix!.codeSnippet);
                           // Could add a toast here or change icon temporarily
                         }}
                         className="absolute top-1 right-1 p-1 rounded opacity-0 group-hover:opacity-100 transition-opacity bg-white shadow-sm border border-gray-200 hover:bg-gray-50"

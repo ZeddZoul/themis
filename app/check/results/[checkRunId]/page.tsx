@@ -18,6 +18,7 @@ import { ResultsSkeleton } from '@/components/ui/skeletons';
 import { ExportDropdown, ExportFormat } from '@/components/ui/ExportDropdown';
 
 interface Issue {
+  ruleId?: string;
   severity: 'high' | 'medium' | 'low';
   category: string;
   description: string;
@@ -359,21 +360,33 @@ export default function CheckResultsPage() {
           {/* High Severity Issues */}
           <IssueGroup severity="high" issues={groupedIssues.high}>
             {groupedIssues.high.map((issue, index) => (
-              <IssueCard key={`high-${index}`} issue={issue} />
+              <IssueCard 
+                key={`high-${index}`} 
+                issue={issue} 
+                checkRunId={Array.isArray(params.checkRunId) ? params.checkRunId[0] : params.checkRunId}
+              />
             ))}
           </IssueGroup>
 
           {/* Medium Severity Issues */}
           <IssueGroup severity="medium" issues={groupedIssues.medium}>
             {groupedIssues.medium.map((issue, index) => (
-              <IssueCard key={`medium-${index}`} issue={issue} />
+              <IssueCard 
+                key={`medium-${index}`} 
+                issue={issue} 
+                checkRunId={Array.isArray(params.checkRunId) ? params.checkRunId[0] : params.checkRunId}
+              />
             ))}
           </IssueGroup>
 
           {/* Low Severity Issues */}
           <IssueGroup severity="low" issues={groupedIssues.low}>
             {groupedIssues.low.map((issue, index) => (
-              <IssueCard key={`low-${index}`} issue={issue} />
+              <IssueCard 
+                key={`low-${index}`} 
+                issue={issue} 
+                checkRunId={Array.isArray(params.checkRunId) ? params.checkRunId[0] : params.checkRunId}
+              />
             ))}
           </IssueGroup>
         </div>

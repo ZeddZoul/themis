@@ -49,6 +49,7 @@ model CheckRun {
   status        String   // 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'FAILED'
   checkType     String   // 'APPLE_APP_STORE' | 'GOOGLE_PLAY_STORE' | 'CHROME_WEB_STORE' | 'MOBILE_PLATFORMS'
   issues        Json?    // Array of ComplianceIssue
+  files         Json?    // Cached repository files {[filename]: content}
   errorType     String?  // ComplianceErrorType enum value
   errorMessage  String?  // User-friendly error message
   errorDetails  String?  // JSON string with additional error context
