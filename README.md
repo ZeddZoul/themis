@@ -24,8 +24,8 @@ Automated compliance checking for mobile app repositories. Themis Checker analyz
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/your-org/themis-checker.git
-   cd themis-checker
+   git clone https://github.com/zeddzoul/themis.git
+   cd themis
    ```
 
 2. **Install dependencies**
