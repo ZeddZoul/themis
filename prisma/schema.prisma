@@ -41,21 +41,22 @@ model ComplianceReport {
 }
 
 model CheckRun {
-  id            String   @id @default(cuid())
+  id            String    @id @default(cuid())
   repositoryId  String
   owner         String
   repo          String
-  branchName    String   @default("main") // Branch that was checked
-  status        String   // 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'FAILED'
-  checkType     String   // 'APPLE_APP_STORE' | 'GOOGLE_PLAY_STORE' | 'CHROME_WEB_STORE' | 'MOBILE_PLATFORMS'
-  issues        Json?    // Array of ComplianceIssue
-  errorType     String?  // ComplianceErrorType enum value
-  errorMessage  String?  // User-friendly error message
-  errorDetails  String?  // JSON string with additional error context
-  retryable     Boolean  @default(false)
-  createdAt     DateTime @default(now())
+  branchName    String    @default("main") // Branch that was checked
+  status        String    // 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'FAILED'
+  checkType     String    // 'APPLE_APP_STORE' | 'GOOGLE_PLAY_STORE' | 'CHROME_WEB_STORE' | 'MOBILE_PLATFORMS'
+  issues        Json?     // Array of ComplianceIssue
+  files         Json?     // Cached repository files {[filename]: content}
+  errorType     String?   // ComplianceErrorType enum value
+  errorMessage  String?   // User-friendly error message
+  errorDetails  String?   // JSON string with additional error context
+  retryable     Boolean   @default(false)
+  createdAt     DateTime  @default(now())
   completedAt   DateTime?
-  updatedAt     DateTime @updatedAt
+  updatedAt     DateTime  @updatedAt
   
   @@index([repositoryId])
   @@index([owner, repo])
